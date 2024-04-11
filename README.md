@@ -1,37 +1,37 @@
-﻿# tech_shield - Gruppe E 
-(USB-Dongles)
+﻿# tech_shield 
+### wrapper for USB-dongle-devices (yubikeys/nitrokeys)
  
-## Überblick:
+## Overview:
 
-Dieses GitHub-Projekt wird von TechShield betrieben. und ist ein Wrapper für die vorgeschlagene Crypto Abstraction Layer (Kryptografie-Abstraktionsschicht), die den Zugriff auf ein spezifisches Hardware-Sicherheitsmodul (HSM) auf angeschlossenen USB-Dongles ermöglicht. Diese Dongles unterstützen die sichere Speicherung von Schlüsseln.
+This GitHub project is maintained by TechShield and serves as a wrapper for the proposed crypto abstraction layer, facilitating access to a specific hardware security module (HSM) on attached USB-dongles. These dongles support secure key storage.
 
-## Ziel:
+## Objective:
 
-Unser Ziel ist es, eine benutzerfreundliche und sichere Möglichkeit bereitzustellen, um auf die Funktionalität des HSM zuzugreifen, ohne sich um komplexe Implementierungsdetails kümmern zu müssen. Der Wrapper soll die Verwendung des HSM für Entwickler vereinfachen und eine verlässliche Abstraktionsschicht bereitstellen.
+Our goal is to provice a user-friendly and secure way to access the functionality of the HSM without needing to worry about complex implementation details. The wrapper aims to simplify the use of the HSM for developers and provice a reliable abstraction layer.
 
-## Funktionalitäten:
+## Features:
 
-Ermöglicht den Zugriff auf das HSM über eine benutzerfreundliche Abstraktionsschicht.
-Unterstützt die sichere Speicherung und den Zugriff auf Schlüssel.
-Bietet Funktionen zur Verschlüsselung und Entschlüsselung von Daten.
-Implementiert Sicherheitsmechanismen zur Gewährleistung der Vertraulichkeit und Integrität von Daten.
+- Enables access to the HSM through a user-friendly abstraction layer.
+- Supports secure storage and retrieval of keys.
+- Provides functions for data encryption and decryption.
+- Implements security mechanisms to ensure the confidentiality and integrity of data.
 
-## Verwendung:
+## Usage:
 
-(in Bearbeitung)
+(under construction)
 
 ## Contribution:
 
-Wir freuen uns über Beiträge von der Community. Wenn Sie Fehler finden, Verbesserungsvorschläge haben oder neue Funktionen hinzufügen möchten, zögern Sie nicht, einen Pull-Request zu erstellen.
+We welcome contributions from the community. If you find any bugs, have suggestions for improvements or wish to add new features, feel free to create a pull request.
 
-## Lizenz:
+## License:
 
-Dieses Projekt wird unter der MIT-Lizenz veröffentlicht. Weitere Informationen finden Sie in der [__LICENSE__](./LICENSE.md) Datei.
+This project is released under the MIT License. For more information please refer to the [__LICENSE__](./LICENSE.md) file.
 
-## Kontakt:
+## Contact:
 
-Bei Fragen oder Anregungen können Sie uns über die GitHub-Issue-Funktion kontaktieren oder eine E-Mail an unser Team senden.
+For any questions or suggestions, feel free to reach out to us using the GitHub issue feature or by sending an email to our team.
 
-Vielen Dank, dass Sie sich für unser Projekt interessieren!
+Thank you for your interest in our project!
 
 TechShield
