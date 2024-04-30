@@ -1,8 +1,9 @@
-use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
+use x509_cert::{der::{asn1::BitString, Encode}, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     piv::{self, Key},
     MgmKey, YubiKey,
 };
+use pem::{Pem, encode};
 
 fn main() {
     menu();
@@ -15,6 +16,7 @@ fn menu() {
     let mut yubikey = verify_pin(pin, yubikey);
 
     let _ = yubikey.authenticate(MgmKey::default());
+
 
     loop {
         println!("\n----------------------");
@@ -56,12 +58,23 @@ fn decr_data(device: &mut YubiKey) {
 
 }
 
-fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Option<BitString> {
-    if generated_key.is_ok() {
-        return Some(generated_key.unwrap().subject_public_key);
-    } else {
-        return None;
-    }       
+/* fn format_key2(generated_key: Option<BitString>) {
+    let mut bit_vec: Vec<u8>;
+    let laenge = generated_key.encoded_len();
+    for i in laenge {
+        if generated_key.chars.nth(i).unwrap().equals("[") {
+
+        }
+    }
+    
+   // let pem = Pem::new("Test", generated_key);
+   // encode(&pem);
+}}
+*/
+fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Option<[u8]> {
+    let value = generated_key.unwrap().subject_public_key;
+    let mut raw = value.as_bytes();
+    return raw;
 }
 
 fn change_pin() {}
