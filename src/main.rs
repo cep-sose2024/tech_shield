@@ -1,14 +1,18 @@
-use base64::{
-    alphabet,
-    engine::{self, general_purpose},
-    Engine as _,
-};
+use base64::{engine::general_purpose, Engine as _};
+
 use pem::{encode, Pem};
+use std::time::Duration;
 use x509_cert::{
-    der::{asn1::BitString, Encode},
-    spki::SubjectPublicKeyInfoOwned,
+    attr::{AttributeTypeAndValue, AttributeValue},
+    der::{
+        self,
+        asn1::{BitString, SetOfVec},
+    },
+    name::RdnSequence,
+    spki::{ObjectIdentifier, SubjectPublicKeyInfoOwned},
 };
 use yubikey::{
+    certificate,
     piv::{self, Key},
     MgmKey, YubiKey,
 };
@@ -28,9 +32,9 @@ fn menu() {
     loop {
         println!("\n----------------------");
         println!("1. Generate Key");
-        println!("2. Encrypt");
-        println!("3. Change Pin");
-        println!("4. Change PUK");
+        println!("2. Decrypt");
+        println!("3. Show Metadata");
+        println!("4. List Keys");
         println!("5. End");
         println!("----------------------\n");
         let mut input = String::new();
@@ -39,11 +43,21 @@ fn menu() {
         match input.to_string().trim() {
             "1" => {
                 let generated_key = gen_key(&mut yubikey);
-                let formatted_key = format_key(generated_key);
+                let formatted_key = format_key(generated_key, yubikey);
                 encode_key(formatted_key);
             }
             "2" => {
                 decr_data(&mut yubikey);
+            }
+            "3" => {
+                println!(
+                    "{:?}",
+                    yubikey::piv::metadata(&mut yubikey, piv::SlotId::KeyManagement)
+                )
+            }
+            "4" => {
+                let list = Key::list(&mut yubikey);
+                println!("{:?}", list);
             }
             "5" => {
                 break;
@@ -70,12 +84,58 @@ fn decr_data(device: &mut YubiKey) {}
    // encode(&pem);
 }}
 */
-fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Vec<u8> {
-    let value = generated_key.unwrap().subject_public_key;
-    let raw = value.as_bytes();
-    let raw_extracted = raw.unwrap();
-    let raw_vec = raw_extracted.to_vec();
-    return raw_vec;
+
+// Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
+
+pub fn certify(
+    device: &mut YubiKey,
+    generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
+) {
+    let ser = device.serial();
+    let x_ser = x509_cert::serial_number::SerialNumber::new(ser.to_string().as_bytes());
+    let time = x509_cert::time::Validity::from_now(Duration::MAX);
+    let extensions: &[x509_cert::ext::Extension] = &[];
+
+    let gen_cert = certificate::Certificate::generate_self_signed(
+        device,
+        piv::SlotId::KeyManagement,
+        x_ser.unwrap(),
+        time.unwrap(),
+        //TODO       subject,
+        generated_key,
+        extensions,
+    );
+}
+
+// Subject erstellen für generate_self_signed
+pub fn create_rdn() {
+    let vec: Vec<RdnSequence> = Vec::new();
+    let set: SetOfVec<AttributeTypeAndValue> = SetOfVec::new();
+
+    let oid_cn = ObjectIdentifier::new("2.5.4.3").unwrap();
+    let name_byte = "Jannis".as_bytes();
+    let name_box = Box::new(name_byte);
+    let cn_value = AttributeValue::new(der::Tag::Utf8String, name_box).unwrap();
+
+    let cn = AttributeTypeAndValue {
+        oid: oid_cn,
+        value: cn_value,
+    };
+}
+
+fn format_key(
+    generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
+    mut device: YubiKey,
+) -> Vec<u8> {
+    if let Ok(key_info) = generated_key {
+        certify(&mut device, generated_key);
+        let value = key_info.subject_public_key;
+        println!("BitString: {:?}", value);
+        let bytes = BitString::raw_bytes(&value);
+        return bytes.to_vec();
+    }
+    println!("Fehler beim Zugriff auf den öffentlichen Schlüssel.");
+    Vec::new() // Gib einen leeren Vektor zurück, wenn ein Fehler auftritt
 }
 
 fn encode_key(key: Vec<u8>) {
@@ -162,10 +222,10 @@ pub fn get_slot_list(device: &mut YubiKey) {
 pub fn gen_key(device: &mut YubiKey) -> Result<SubjectPublicKeyInfoOwned, yubikey::Error> {
     let gen_key = piv::generate(
         device,
-        piv::SlotId::Authentication,
+        piv::SlotId::KeyManagement,
         piv::AlgorithmId::Rsa2048,
-        yubikey::PinPolicy::Always,
-        yubikey::TouchPolicy::Always,
+        yubikey::PinPolicy::Default,
+        yubikey::TouchPolicy::Never,
     );
     return gen_key;
 }
