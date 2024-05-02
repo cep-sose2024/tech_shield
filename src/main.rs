@@ -1,9 +1,17 @@
-use x509_cert::{der::{asn1::BitString, Encode}, spki::SubjectPublicKeyInfoOwned};
+use base64::{
+    alphabet,
+    engine::{self, general_purpose},
+    Engine as _,
+};
+use pem::{encode, Pem};
+use x509_cert::{
+    der::{asn1::BitString, Encode},
+    spki::SubjectPublicKeyInfoOwned,
+};
 use yubikey::{
     piv::{self, Key},
     MgmKey, YubiKey,
 };
-use pem::{Pem, encode};
 
 fn main() {
     menu();
@@ -16,7 +24,6 @@ fn menu() {
     let mut yubikey = verify_pin(pin, yubikey);
 
     let _ = yubikey.authenticate(MgmKey::default());
-
 
     loop {
         println!("\n----------------------");
@@ -33,16 +40,10 @@ fn menu() {
             "1" => {
                 let generated_key = gen_key(&mut yubikey);
                 let formatted_key = format_key(generated_key);
-                println!("{:?}", formatted_key);
+                encode_key(formatted_key);
             }
             "2" => {
-                decr_data(&mut yubikey);            
-            }
-            "3" => {
-                change_pin();
-            }
-            "4" => {
-                change_puk();
+                decr_data(&mut yubikey);
             }
             "5" => {
                 break;
@@ -54,9 +55,7 @@ fn menu() {
     }
 }
 
-fn decr_data(device: &mut YubiKey) {
-
-}
+fn decr_data(device: &mut YubiKey) {}
 
 /* fn format_key2(generated_key: Option<BitString>) {
     let mut bit_vec: Vec<u8>;
@@ -66,20 +65,26 @@ fn decr_data(device: &mut YubiKey) {
 
         }
     }
-    
+
    // let pem = Pem::new("Test", generated_key);
    // encode(&pem);
 }}
 */
-fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Option<[u8]> {
+fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Vec<u8> {
     let value = generated_key.unwrap().subject_public_key;
-    let mut raw = value.as_bytes();
-    return raw;
+    let raw = value.as_bytes();
+    let raw_extracted = raw.unwrap();
+    let raw_vec = raw_extracted.to_vec();
+    return raw_vec;
 }
 
-fn change_pin() {}
-
-fn change_puk() {}
+fn encode_key(key: Vec<u8>) {
+    let key_b64 = general_purpose::STANDARD.encode(&key);
+    println!("\nBase 64: \n{}", key_b64);
+    let pem = Pem::new("PUBLIC KEY", key);
+    let pem_key = encode(&pem);
+    println!("\nPEM-Key:{:?}", pem_key);
+}
 
 fn open_device() -> YubiKey {
     loop {
@@ -101,9 +106,9 @@ fn pin_eingabe() -> String {
     let _ = std::io::stdin().read_line(&mut eingabe);
     let eingabe = eingabe.trim(); // Entfernen von Whitespace und Newline-Zeichen
     if eingabe == "123456" {
-        println!("\nPlease change your standard PIN.\n");    
+        println!("\nPlease change your standard PIN.\n");
     }
-    eingabe.to_string() // Rückgabe des bereinigten Strings
+    eingabe.to_string() // RÃ¼ckgabe des bereinigten Strings
 }
 
 fn verify_pin(pin: String, mut device: YubiKey) -> YubiKey {
