@@ -1,14 +1,14 @@
 use base64::{engine::general_purpose, Engine as _};
 
 use pem::{encode, Pem};
-use std::time::Duration;
+use std::{str::FromStr, time::Duration};
 use x509_cert::{
     attr::{AttributeTypeAndValue, AttributeValue},
     der::{
         self,
         asn1::{BitString, SetOfVec},
     },
-    name::RdnSequence,
+    name::{Name, RdnSequence},
     spki::{ObjectIdentifier, SubjectPublicKeyInfoOwned},
 };
 use yubikey::{
@@ -94,6 +94,9 @@ pub fn certify(
     let ser = device.serial();
     let x_ser = x509_cert::serial_number::SerialNumber::new(ser.to_string().as_bytes());
     let time = x509_cert::time::Validity::from_now(Duration::MAX);
+    //   let extensions: &[x509_cert::ext::Extension] = &[];
+    let gen_key_unwrapped = generated_key.unwrap();
+    let subject = create_rdn();
     let extensions: &[x509_cert::ext::Extension] = &[];
 
     let gen_cert = certificate::Certificate::generate_self_signed(
@@ -101,14 +104,14 @@ pub fn certify(
         piv::SlotId::KeyManagement,
         x_ser.unwrap(),
         time.unwrap(),
-        //TODO       subject,
-        generated_key,
+        subject,
+        gen_key_unwrapped,
         extensions,
     );
 }
 
 // Subject erstellen für generate_self_signed
-pub fn create_rdn() {
+pub fn create_rdn() -> RdnSequence {
     let vec: Vec<RdnSequence> = Vec::new();
     let set: SetOfVec<AttributeTypeAndValue> = SetOfVec::new();
 
@@ -117,10 +120,19 @@ pub fn create_rdn() {
     let name_box = Box::new(name_byte);
     let cn_value = AttributeValue::new(der::Tag::Utf8String, name_box).unwrap();
 
-    let cn = AttributeTypeAndValue {
-        oid: oid_cn,
-        value: cn_value,
+    let cn = format!(
+        "oid: {},
+        value: {},",
+        oid_cn.to_string(),
+        cn_value
+    );
+
+    let test = RdnSequence::from_str(&cn);
+    match test {
+        Ok(handle) => println!("Erfolgreich: {:?}", handle),
+        Err(err) => println!("Failed: {:?}", err),
     };
+    return test.unwrap();
 }
 
 fn format_key(
