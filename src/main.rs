@@ -18,6 +18,8 @@ use yubikey::{
 };
 
 use topk8;
+
+
 fn main() {
     menu();
 }
@@ -191,6 +193,7 @@ fn open_device() -> YubiKey {
 }
 
 fn pin_eingabe() -> String {
+    /*
     println!("Please insert your 6-figures PIN:\n");
     let mut eingabe = String::new();
     let _ = std::io::stdin().read_line(&mut eingabe);
@@ -199,6 +202,8 @@ fn pin_eingabe() -> String {
         println!("\nPlease change your standard PIN.\n");
     }
     eingabe.to_string() // RÃ¼ckgabe des bereinigten Strings
+    */
+    "123456".to_string()
 }
 
 fn verify_pin(pin: String, mut device: YubiKey) -> YubiKey {

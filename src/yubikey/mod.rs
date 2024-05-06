@@ -29,17 +29,4 @@ impl YubiKeyProvider {
             key_usages: None,
         }
     }
-
-    pub fn open_device(&mut self) {
-        self.yubikey = Some(yubikey::open_device());
-    }
-
-    pub fn verify_pin(&mut self, pin: String) {
-        self.yubikey = Some(yubikey::verify_pin(pin, self.yubikey));
-    }
-
-    pub fn authenticate(&mut self) {
-        let _ = self.yubikey.authenticate(yubikey::MgmKey::default());
-    }
-
 }
