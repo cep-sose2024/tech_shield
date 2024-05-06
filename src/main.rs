@@ -17,6 +17,7 @@ use yubikey::{
     MgmKey, YubiKey,
 };
 
+use topk8;
 fn main() {
     menu();
 }
@@ -43,8 +44,9 @@ fn menu() {
         match input.to_string().trim() {
             "1" => {
                 let generated_key = gen_key(&mut yubikey);
-                let formatted_key = format_key(generated_key, yubikey);
-                encode_key(formatted_key);
+                let formatted_key = format_key(generated_key, &yubikey);
+                let keys = encode_key(formatted_key);
+                format_to_pkcs1(keys);
             }
             "2" => {
                 decr_data(&mut yubikey);
@@ -71,6 +73,13 @@ fn menu() {
 
 fn decr_data(device: &mut YubiKey) {}
 
+fn format_to_pkcs1(keys: Vec<String>) {
+    let pem_key = keys.get(0).unwrap();
+    let pem_key_new = keys.get(1).unwrap();
+    let formatted_pem_key = topk8::format_key(pem_key);
+    println!("\nFormatted Key: \n{:?}", formatted_pem_key);
+}
+
 /* fn format_key2(generated_key: Option<BitString>) {
     let mut bit_vec: Vec<u8>;
     let laenge = generated_key.encoded_len();
@@ -87,7 +96,7 @@ fn decr_data(device: &mut YubiKey) {}
 
 // Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
 //test
-pub fn certify(
+/* pub fn certify(
     device: &mut YubiKey,
     generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
 ) {
@@ -134,13 +143,13 @@ pub fn create_rdn() -> RdnSequence {
     };
     return test.unwrap();
 }
-
+*/
 fn format_key(
     generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
-    mut device: YubiKey,
+    mut device: &YubiKey,
 ) -> Vec<u8> {
     if let Ok(key_info) = generated_key {
-        certify(&mut device, generated_key);
+        //     certify(&mut device, generated_key);
         let value = key_info.subject_public_key;
         println!("BitString: {:?}", value);
         let bytes = BitString::raw_bytes(&value);
@@ -150,12 +159,21 @@ fn format_key(
     Vec::new() // Gib einen leeren Vektor zurück, wenn ein Fehler auftritt
 }
 
-fn encode_key(key: Vec<u8>) {
+fn encode_key(key: Vec<u8>) -> Vec<String> {
     let key_b64 = general_purpose::STANDARD.encode(&key);
     println!("\nBase 64: \n{}", key_b64);
     let pem = Pem::new("PUBLIC KEY", key);
     let pem_key = encode(&pem);
     println!("\nPEM-Key:{:?}", pem_key);
+    let mut pem_key_new = pem_key.replace("\r", "");
+    pem_key_new = pem_key_new.replace("\n", "");
+    println!("\n New: {:?}", pem_key_new);
+
+    let mut keys: Vec<String> = Vec::new();
+    keys.push(pem_key);
+    keys.push(pem_key_new);
+
+    return keys;
 }
 
 fn open_device() -> YubiKey {
