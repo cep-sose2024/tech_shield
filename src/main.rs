@@ -86,7 +86,7 @@ fn decr_data(device: &mut YubiKey) {}
 */
 
 // Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
-
+//test
 pub fn certify(
     device: &mut YubiKey,
     generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
