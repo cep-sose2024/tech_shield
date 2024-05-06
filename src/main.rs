@@ -1,18 +1,7 @@
 use base64::{engine::general_purpose, Engine};
 
-use pem::{encode, Pem};
-use std::{str::FromStr, time::Duration};
-use x509_cert::{
-    attr::{AttributeTypeAndValue, AttributeValue},
-    der::{
-        self,
-        asn1::{BitString, SetOfVec},
-    },
-    name::{Name, RdnSequence},
-    spki::{ObjectIdentifier, SubjectPublicKeyInfoOwned},
-};
+use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
-    certificate,
     piv::{self, Key},
     MgmKey, YubiKey,
 };
@@ -42,8 +31,8 @@ fn menu() {
         match input.to_string().trim() {
             "1" => {
                 let generated_key = gen_key(&mut yubikey);
-                let formatted_key = format_key(generated_key, &yubikey);
-                let keys = encode_key(formatted_key);
+                let formatted_key = format_key(generated_key);
+                encode_key(formatted_key);
             }
             "2" => {
                 decr_data(&mut yubikey);
@@ -75,7 +64,7 @@ fn decr_data(device: &mut YubiKey) {
     let encrypted_bytes = encrypted.trim_end().as_bytes();
     let encrypted_bytes_decoded = general_purpose::STANDARD.decode(encrypted_bytes).unwrap();
     let input: &[u8] = &encrypted_bytes_decoded;
-    println!("{:?}", encrypted_bytes);
+    //    println!("{:?}", encrypted_bytes);
     let decrypted = piv::decrypt_data(
         device,
         input,
@@ -85,9 +74,9 @@ fn decr_data(device: &mut YubiKey) {
     match decrypted {
         Ok(buffer) => {
             let string = String::from_utf8_lossy(&buffer);
-            println!("\nDecrypted (lossy): {}", string);
+            println!("\nDecrypted (lossy): \n{}", string);
         }
-        Err(err) => println!("\nFailed to decrypt: {:?}", err),
+        Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
     }
 }
 
@@ -106,7 +95,6 @@ fn decr_data(device: &mut YubiKey) {
 */
 
 // Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
-//test
 /* pub fn certify(
     device: &mut YubiKey,
     generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
@@ -157,10 +145,7 @@ pub fn create_rdn() -> RdnSequence {
 */
 
 // Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
-fn format_key(
-    generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
-    mut device: &YubiKey,
-) -> Vec<u8> {
+fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Vec<u8> {
     if let Ok(key_info) = generated_key {
         //     certify(&mut device, generated_key);
         let value = key_info.subject_public_key;
@@ -172,23 +157,24 @@ fn format_key(
 }
 
 // Key in PEM und base64 konvertieren
-fn encode_key(key: Vec<u8>) -> Vec<String> {
+fn encode_key(key: Vec<u8>) {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
     let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{:?}", key_b64);
-    println!("\nBase 64: \n{}", key_b64_new);
-    let pem = Pem::new("PUBLIC KEY", key);
-    let pem_key = encode(&pem);
-    println!("\nPEM-Key:{:?}", pem_key);
-    let mut pem_key_new = pem_key.replace("\r", "");
-    pem_key_new = pem_key_new.replace("\n", "");
-    println!("\n New: {:?}", pem_key_new);
+    println!("\nPublic Key: \n\n{}", key_b64_new);
+    /*    let pem = Pem::new("PUBLIC KEY", key);
+        let pem_key = encode(&pem);
+        println!("\nPEM-Key:{:?}", pem_key);
+        let mut pem_key_new = pem_key.replace("\r", "");
+        pem_key_new = pem_key_new.replace("\n", "");
+        println!("\n New: {:?}", pem_key_new);
 
-    let mut keys: Vec<String> = Vec::new();
-    keys.push(pem_key);
-    keys.push(pem_key_new);
+        let mut keys: Vec<String> = Vec::new();
+        keys.push(pem_key);
+        keys.push(pem_key_new);
 
-    return keys;
+        return keys;
+    */
 }
 
 fn open_device() -> YubiKey {
