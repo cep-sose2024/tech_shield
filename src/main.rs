@@ -1,4 +1,4 @@
-use base64::{engine::general_purpose, Engine as _};
+use base64::{engine::general_purpose, Engine};
 
 use pem::{encode, Pem};
 use std::{str::FromStr, time::Duration};
@@ -16,10 +16,6 @@ use yubikey::{
     piv::{self, Key},
     MgmKey, YubiKey,
 };
-
-use topk8;
-
-
 fn main() {
     menu();
 }
@@ -48,7 +44,6 @@ fn menu() {
                 let generated_key = gen_key(&mut yubikey);
                 let formatted_key = format_key(generated_key, &yubikey);
                 let keys = encode_key(formatted_key);
-                format_to_pkcs1(keys);
             }
             "2" => {
                 decr_data(&mut yubikey);
@@ -73,13 +68,27 @@ fn menu() {
     }
 }
 
-fn decr_data(device: &mut YubiKey) {}
-
-fn format_to_pkcs1(keys: Vec<String>) {
-    let pem_key = keys.get(0).unwrap();
-    let pem_key_new = keys.get(1).unwrap();
-    let formatted_pem_key = topk8::format_key(pem_key);
-    println!("\nFormatted Key: \n{:?}", formatted_pem_key);
+fn decr_data(device: &mut YubiKey) {
+    println!("\nPlease enter the encrypted data: \n");
+    let mut encrypted = String::new();
+    let _ = std::io::stdin().read_line(&mut encrypted);
+    let encrypted_bytes = encrypted.trim_end().as_bytes();
+    let encrypted_bytes_decoded = general_purpose::STANDARD.decode(encrypted_bytes).unwrap();
+    let input: &[u8] = &encrypted_bytes_decoded;
+    println!("{:?}", encrypted_bytes);
+    let decrypted = piv::decrypt_data(
+        device,
+        input,
+        piv::AlgorithmId::Rsa2048,
+        piv::SlotId::KeyManagement,
+    );
+    match decrypted {
+        Ok(buffer) => {
+            let string = String::from_utf8_lossy(&buffer);
+            println!("\nDecrypted (lossy): {}", string);
+        }
+        Err(err) => println!("\nFailed to decrypt: {:?}", err),
+    }
 }
 
 /* fn format_key2(generated_key: Option<BitString>) {
@@ -146,6 +155,8 @@ pub fn create_rdn() -> RdnSequence {
     return test.unwrap();
 }
 */
+
+// Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
 fn format_key(
     generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
     mut device: &YubiKey,
@@ -153,17 +164,19 @@ fn format_key(
     if let Ok(key_info) = generated_key {
         //     certify(&mut device, generated_key);
         let value = key_info.subject_public_key;
-        println!("BitString: {:?}", value);
-        let bytes = BitString::raw_bytes(&value);
+        let bytes = BitString::as_bytes(&value).unwrap();
         return bytes.to_vec();
     }
     println!("Fehler beim Zugriff auf den öffentlichen Schlüssel.");
     Vec::new() // Gib einen leeren Vektor zurück, wenn ein Fehler auftritt
 }
 
+// Key in PEM und base64 konvertieren
 fn encode_key(key: Vec<u8>) -> Vec<String> {
+    // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
-    println!("\nBase 64: \n{}", key_b64);
+    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{:?}", key_b64);
+    println!("\nBase 64: \n{}", key_b64_new);
     let pem = Pem::new("PUBLIC KEY", key);
     let pem_key = encode(&pem);
     println!("\nPEM-Key:{:?}", pem_key);
@@ -193,7 +206,6 @@ fn open_device() -> YubiKey {
 }
 
 fn pin_eingabe() -> String {
-    /*
     println!("Please insert your 6-figures PIN:\n");
     let mut eingabe = String::new();
     let _ = std::io::stdin().read_line(&mut eingabe);
@@ -202,8 +214,6 @@ fn pin_eingabe() -> String {
         println!("\nPlease change your standard PIN.\n");
     }
     eingabe.to_string() // RÃ¼ckgabe des bereinigten Strings
-    */
-    "123456".to_string()
 }
 
 fn verify_pin(pin: String, mut device: YubiKey) -> YubiKey {
