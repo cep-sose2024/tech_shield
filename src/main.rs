@@ -74,7 +74,7 @@ fn decr_data(device: &mut YubiKey) {
     );
     match decrypted {
         Ok(buffer) => {
-            let decoderf = Encoding::new_decoder(&'static self);
+            let decoderf = Encoding::new_decoder(& self);
             let mut output = "";
             Decoder::decode_to_str(&mut self, &buffer, &mut output, last)
             println!("\nDecrypted (lossy): \n{}", string);
