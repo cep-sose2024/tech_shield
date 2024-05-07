@@ -2,9 +2,10 @@ use base64::{engine::general_purpose, Engine};
 
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
-    piv::{self, Key},
+    piv::{self, Key, RetiredSlotId, SlotId},
     MgmKey, YubiKey,
 };
+use encoding_rs::{Decoder, Encoding};
 fn main() {
     menu();
 }
@@ -73,26 +74,14 @@ fn decr_data(device: &mut YubiKey) {
     );
     match decrypted {
         Ok(buffer) => {
-            let string = String::from_utf8_lossy(&buffer);
+            let decoderf = Encoding::new_decoder(&'static self);
+            let mut output = "";
+            Decoder::decode_to_str(&mut self, &buffer, &mut output, last)
             println!("\nDecrypted (lossy): \n{}", string);
         }
         Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
-    }
+    }   
 }
-
-/* fn format_key2(generated_key: Option<BitString>) {
-    let mut bit_vec: Vec<u8>;
-    let laenge = generated_key.encoded_len();
-    for i in laenge {
-        if generated_key.chars.nth(i).unwrap().equals("[") {
-
-        }
-    }
-
-   // let pem = Pem::new("Test", generated_key);
-   // encode(&pem);
-}}
-*/
 
 // Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
 /* pub fn certify(
@@ -251,6 +240,14 @@ pub fn get_slot_list(device: &mut YubiKey) {
 }
 
 pub fn gen_key(device: &mut YubiKey) -> Result<SubjectPublicKeyInfoOwned, yubikey::Error> {
+  /*   let all_slots = [
+        RetiredSlotId::R1, RetiredSlotId::R2, RetiredSlotId::R3, RetiredSlotId::R4,
+        RetiredSlotId::R5, RetiredSlotId::R6, RetiredSlotId::R7, RetiredSlotId::R8,
+        RetiredSlotId::R9, RetiredSlotId::R10, RetiredSlotId::R11, RetiredSlotId::R12,
+        RetiredSlotId::R13, RetiredSlotId::R14, RetiredSlotId::R15, RetiredSlotId::R16,
+        RetiredSlotId::R17, RetiredSlotId::R18, RetiredSlotId::R19, RetiredSlotId::R20,
+    ];
+    */
     let gen_key = piv::generate(
         device,
         piv::SlotId::KeyManagement,
