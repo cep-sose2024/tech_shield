@@ -5,7 +5,7 @@ use yubikey::{
     piv::{self, Key, RetiredSlotId, SlotId},
     MgmKey, YubiKey,
 };
-use encoding_rs::{Decoder, Encoding};
+use encoding_rs::{Decoder, Encoding, UTF_8};
 fn main() {
     menu();
 }
@@ -74,10 +74,12 @@ fn decr_data(device: &mut YubiKey) {
     );
     match decrypted {
         Ok(buffer) => {
-            let decoderf = Encoding::new_decoder(& self);
-            let mut output = "";
-            Decoder::decode_to_str(&mut self, &buffer, &mut output, last)
-            println!("\nDecrypted (lossy): \n{}", string);
+            let mut output_bytes = vec![0; 1024];
+
+            let mut decoder = UTF_8.new_decoder();
+            let mut output = String::new();
+            let test = decoder.decode_to_str(&buffer, &mut output, false);
+            println!("\nDecrypted (lossy): \n{:?}\n{:?}\n{:?}", &output, test, buffer);
         }
         Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
     }   
