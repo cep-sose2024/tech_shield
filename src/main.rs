@@ -2,10 +2,9 @@ use base64::{engine::general_purpose, Engine};
 
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
-    piv::{self, Key, RetiredSlotId, SlotId},
+    piv::{self, Key},
     MgmKey, YubiKey,
 };
-use encoding_rs::{Decoder, Encoding, UTF_8};
 fn main() {
     menu();
 }
@@ -74,16 +73,26 @@ fn decr_data(device: &mut YubiKey) {
     );
     match decrypted {
         Ok(buffer) => {
-            let mut output_bytes = vec![0; 1024];
-
-            let mut decoder = UTF_8.new_decoder();
-            let mut output = String::new();
-            let test = decoder.decode_to_str(&buffer, &mut output, false);
-            println!("\nDecrypted (lossy): \n{:?}\n{:?}\n{:?}", &output, test, buffer);
+            let string = String::from_utf8_lossy(&buffer);
+            println!("\nDecrypted (lossy): \n{}", string);
         }
         Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
-    }   
+    }
 }
+
+/* fn format_key2(generated_key: Option<BitString>) {
+    let mut bit_vec: Vec<u8>;
+    let laenge = generated_key.encoded_len();
+    for i in laenge {
+        if generated_key.chars.nth(i).unwrap().equals("[") {
+
+        }
+    }
+
+   // let pem = Pem::new("Test", generated_key);
+   // encode(&pem);
+}}
+*/
 
 // Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
 /* pub fn certify(
@@ -183,7 +192,6 @@ fn open_device() -> YubiKey {
 }
 
 fn pin_eingabe() -> String {
-    /*
     println!("Please insert your 6-figures PIN:\n");
     let mut eingabe = String::new();
     let _ = std::io::stdin().read_line(&mut eingabe);
@@ -191,9 +199,7 @@ fn pin_eingabe() -> String {
     if eingabe == "123456" {
         println!("\nPlease change your standard PIN.\n");
     }
-    eingabe.to_string() // Rückgabe des bereinigten Strings
-    */
-    "123456".to_string() // Standard-PIN für Testzwecke
+    eingabe.to_string() // RÃ¼ckgabe des bereinigten Strings
 }
 
 fn verify_pin(pin: String, mut device: YubiKey) -> YubiKey {
@@ -245,14 +251,6 @@ pub fn get_slot_list(device: &mut YubiKey) {
 }
 
 pub fn gen_key(device: &mut YubiKey) -> Result<SubjectPublicKeyInfoOwned, yubikey::Error> {
-  /*   let all_slots = [
-        RetiredSlotId::R1, RetiredSlotId::R2, RetiredSlotId::R3, RetiredSlotId::R4,
-        RetiredSlotId::R5, RetiredSlotId::R6, RetiredSlotId::R7, RetiredSlotId::R8,
-        RetiredSlotId::R9, RetiredSlotId::R10, RetiredSlotId::R11, RetiredSlotId::R12,
-        RetiredSlotId::R13, RetiredSlotId::R14, RetiredSlotId::R15, RetiredSlotId::R16,
-        RetiredSlotId::R17, RetiredSlotId::R18, RetiredSlotId::R19, RetiredSlotId::R20,
-    ];
-    */
     let gen_key = piv::generate(
         device,
         piv::SlotId::KeyManagement,
