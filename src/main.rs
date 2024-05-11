@@ -1,8 +1,9 @@
 use base64::{engine::general_purpose, Engine};
 
+use pad::PadStr;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
-    piv::{self, Key},
+    piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
 fn main() {
@@ -23,14 +24,16 @@ fn menu() {
         println!("2. Decrypt");
         println!("3. Show Metadata");
         println!("4. List Keys");
-        println!("5. End");
+        println!("5. Sign Data");
+        println!("6. End");
         println!("----------------------\n");
         let mut input = String::new();
         let _ = std::io::stdin().read_line(&mut input);
 
         match input.to_string().trim() {
             "1" => {
-                let generated_key = gen_key(&mut yubikey);
+                let cipher = AlgorithmId::Rsa2048;
+                let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
                 let formatted_key = format_key(generated_key);
                 encode_key(formatted_key);
             }
@@ -48,12 +51,42 @@ fn menu() {
                 println!("{:?}", list);
             }
             "5" => {
+                sign(&mut yubikey);
+            }
+            "6" => {
                 break;
             }
             _ => {
                 println!("\nUnknown Input!\n");
             }
         }
+    }
+}
+
+fn sign(device: &mut YubiKey) {
+    println!("\nPlease enter the data to sign: \n");
+    let data = String::new();
+    let _ = std::io::stdin().read_line(&mut data.pad_to_width(245));
+    let data = data.trim();
+    let data = data.as_bytes();
+
+    // new key for signing in Signature-Slot
+    let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
+    let formatted_key = format_key(generated_key);
+    encode_key(formatted_key);
+
+    let signature = piv::sign_data(
+        device,
+        data,
+        piv::AlgorithmId::Rsa2048,
+        piv::SlotId::Signature,
+    );
+    match signature {
+        Ok(buffer) => {
+            let string = String::from_utf8_lossy(&buffer);
+            println!("\nSignature (lossy): \n{}", string);
+        }
+        Err(err) => println!("\nFailed to sign: \n{:?}", err),
     }
 }
 
@@ -79,70 +112,6 @@ fn decr_data(device: &mut YubiKey) {
         Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
     }
 }
-
-/* fn format_key2(generated_key: Option<BitString>) {
-    let mut bit_vec: Vec<u8>;
-    let laenge = generated_key.encoded_len();
-    for i in laenge {
-        if generated_key.chars.nth(i).unwrap().equals("[") {
-
-        }
-    }
-
-   // let pem = Pem::new("Test", generated_key);
-   // encode(&pem);
-}}
-*/
-
-// Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
-/* pub fn certify(
-    device: &mut YubiKey,
-    generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
-) {
-    let ser = device.serial();
-    let x_ser = x509_cert::serial_number::SerialNumber::new(ser.to_string().as_bytes());
-    let time = x509_cert::time::Validity::from_now(Duration::MAX);
-    //   let extensions: &[x509_cert::ext::Extension] = &[];
-    let gen_key_unwrapped = generated_key.unwrap();
-    let subject = create_rdn();
-    let extensions: &[x509_cert::ext::Extension] = &[];
-
-    let gen_cert = certificate::Certificate::generate_self_signed(
-        device,
-        piv::SlotId::KeyManagement,
-        x_ser.unwrap(),
-        time.unwrap(),
-        subject,
-        gen_key_unwrapped,
-        extensions,
-    );
-}
-
-// Subject erstellen für generate_self_signed
-pub fn create_rdn() -> RdnSequence {
-    let vec: Vec<RdnSequence> = Vec::new();
-    let set: SetOfVec<AttributeTypeAndValue> = SetOfVec::new();
-
-    let oid_cn = ObjectIdentifier::new("2.5.4.3").unwrap();
-    let name_byte = "Jannis".as_bytes();
-    let name_box = Box::new(name_byte);
-    let cn_value = AttributeValue::new(der::Tag::Utf8String, name_box).unwrap();
-
-    let cn = format!(
-        "oid: {},
-        value: {},",
-        oid_cn.to_string(),
-        cn_value
-    );
-
-    let test = RdnSequence::from_str(&cn);
-    match test {
-        Ok(handle) => println!("Erfolgreich: {:?}", handle),
-        Err(err) => println!("Failed: {:?}", err),
-    };
-    return test.unwrap();
-}
-*/
 
 // Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
 fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Vec<u8> {
@@ -250,13 +219,67 @@ pub fn get_slot_list(device: &mut YubiKey) {
     }
 }
 
-pub fn gen_key(device: &mut YubiKey) -> Result<SubjectPublicKeyInfoOwned, yubikey::Error> {
+pub fn gen_key(
+    device: &mut YubiKey,
+    cipher: AlgorithmId,
+    slot: piv::SlotId,
+) -> Result<SubjectPublicKeyInfoOwned, yubikey::Error> {
     let gen_key = piv::generate(
         device,
-        piv::SlotId::KeyManagement,
-        piv::AlgorithmId::Rsa2048,
+        slot,
+        cipher,
         yubikey::PinPolicy::Default,
         yubikey::TouchPolicy::Never,
     );
     return gen_key;
 }
+
+// Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
+/* pub fn certify(
+    device: &mut YubiKey,
+    generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
+) {
+    let ser = device.serial();
+    let x_ser = x509_cert::serial_number::SerialNumber::new(ser.to_string().as_bytes());
+    let time = x509_cert::time::Validity::from_now(Duration::MAX);
+    //   let extensions: &[x509_cert::ext::Extension] = &[];
+    let gen_key_unwrapped = generated_key.unwrap();
+    let subject = create_rdn();
+    let extensions: &[x509_cert::ext::Extension] = &[];
+
+    let gen_cert = certificate::Certificate::generate_self_signed(
+        device,
+        piv::SlotId::KeyManagement,
+        x_ser.unwrap(),
+        time.unwrap(),
+        subject,
+        gen_key_unwrapped,
+        extensions,
+    );
+}
+
+// Subject erstellen für generate_self_signed
+pub fn create_rdn() -> RdnSequence {
+    let vec: Vec<RdnSequence> = Vec::new();
+    let set: SetOfVec<AttributeTypeAndValue> = SetOfVec::new();
+
+    let oid_cn = ObjectIdentifier::new("2.5.4.3").unwrap();
+    let name_byte = "Jannis".as_bytes();
+    let name_box = Box::new(name_byte);
+    let cn_value = AttributeValue::new(der::Tag::Utf8String, name_box).unwrap();
+
+    let cn = format!(
+        "oid: {},
+        value: {},",
+        oid_cn.to_string(),
+        cn_value
+    );
+
+    let test = RdnSequence::from_str(&cn);
+    match test {
+        Ok(handle) => println!("Erfolgreich: {:?}", handle),
+        Err(err) => println!("Failed: {:?}", err),
+    };
+    return test.unwrap();
+}
+*/
