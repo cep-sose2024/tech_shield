@@ -6,6 +6,10 @@ use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
+
+use rsa::{PublicKey, RsaPublicKey, PaddingScheme};
+use rand::rngs::OsRng;
+
 fn main() {
     menu();
 }
@@ -28,6 +32,7 @@ fn menu() {
         println!("4. List Keys");
         println!("5. Sign Data");
         println!("6. End");
+        println!("7. Encrypt");
         println!("----------------------\n");
         let mut input = String::new();
         let _ = std::io::stdin().read_line(&mut input);
@@ -36,6 +41,7 @@ fn menu() {
             "1" => {
                 let cipher = AlgorithmId::Rsa2048;
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
+                println!("{:?}", generated_key);
                 let formatted_key = format_key(generated_key);
                 encode_key(formatted_key);
             }
@@ -58,11 +64,29 @@ fn menu() {
             "6" => {
                 break;
             }
+            "7" => {
+                encrypt();
+            }
             _ => {
                 println!("\nUnknown Input!\n");
             }
         }
     }
+}
+
+fn encrypt() {
+        println!("\nPlease enter the public key: \n");
+        let mut public_key = String::new();
+        let _ = std::io::stdin().read_line(&mut public_key);
+        let encrypted_bytes = public_key.trim_end().as_bytes();
+        println!("{:?}", encrypted_bytes);
+        let public_key2 = RsaPublicKey::from_pem(public_key).unwrap();
+    
+        let padding = PaddingScheme::new_pkcs1v15_encrypt();
+        let mut rng = OsRng;
+        let data = b"Verschlüsselte Nachricht";
+    
+        let encrypted_data = public_key.encrypt(&mut rng, padding, &data[..]).expect("Failed to encrypt");
 }
 
 fn sign(device: &mut YubiKey) {
@@ -131,7 +155,7 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 fn encode_key(key: Vec<u8>) {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
-    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{:?}", key_b64);
+    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}", key_b64);
     println!("\nPublic Key: \n\n{}", key_b64_new);
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
