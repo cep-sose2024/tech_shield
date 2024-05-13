@@ -1,5 +1,6 @@
 use base64::{engine::general_purpose, Engine};
 
+use hex;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
@@ -63,10 +64,6 @@ fn menu() {
 }
 
 fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
-    if data.len() + 11 > block_size {
-        println!("Data is too long to apply PKCS1v15 padding");
-    }
-
     let padding_length = block_size - data.len() - 3;
     let mut padded_data = Vec::with_capacity(block_size);
     padded_data.push(0x00);
@@ -131,6 +128,8 @@ fn decr_data(device: &mut YubiKey) {
     );
     match decrypted {
         Ok(buffer) => {
+            let hex = hex::encode(&buffer);
+            println!("{}", hex);
             let string = String::from_utf8_lossy(&buffer);
             println!("\nDecrypted (lossy): \n{}", string);
         }
