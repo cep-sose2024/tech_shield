@@ -1,6 +1,5 @@
 use base64::{engine::general_purpose, Engine};
 
-use pad::PadStr;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
@@ -63,12 +62,34 @@ fn menu() {
     }
 }
 
+fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
+    if data.len() + 11 > block_size {
+        println!("Data is too long to apply PKCS1v15 padding");
+    }
+
+    let padding_length = block_size - data.len() - 3;
+    let mut padded_data = Vec::with_capacity(block_size);
+    padded_data.push(0x00);
+    padded_data.push(0x01);
+    for _ in 0..padding_length {
+        padded_data.push(0xFF);
+    }
+    padded_data.push(0x00);
+    padded_data.extend_from_slice(data);
+
+    padded_data
+}
+
 fn sign(device: &mut YubiKey) {
     println!("\nPlease enter the data to sign: \n");
-    let data = String::new();
-    let _ = std::io::stdin().read_line(&mut data.pad_to_width(245));
-    let data = data.trim();
-    let data = data.as_bytes();
+    let mut data = String::new();
+    let _ = std::io::stdin().read_line(&mut data);
+
+    let data_str = data.trim();
+    let data_u8 = data_str.as_bytes();
+
+    let padded_data = apply_pkcs1v15_padding(data_u8, 256);
+    let padded_data_bytes: &[u8] = &padded_data;
 
     // new key for signing in Signature-Slot
     let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
@@ -77,7 +98,7 @@ fn sign(device: &mut YubiKey) {
 
     let signature = piv::sign_data(
         device,
-        data,
+        padded_data_bytes,
         piv::AlgorithmId::Rsa2048,
         piv::SlotId::Signature,
     );
