@@ -9,8 +9,8 @@ use yubikey::{
     MgmKey, YubiKey,
 };
 
-use rsa::{pkcs1::DecodeRsaPublicKey, RsaPublicKey};
-use rand::rngs::OsRng;
+use rsa::{pkcs1::DecodeRsaPublicKey, pkcs8::DecodePublicKey, rand_core::CryptoRngCore, RsaPublicKey};
+use rand::{rngs::OsRng, CryptoRng};
 
 fn main() {
     menu();
@@ -67,7 +67,7 @@ fn menu() {
                 break;
             }
             "7" => {
-               // encrypt();
+          //      encrypt();
             }
             _ => {
                 println!("\nUnknown Input!\n");
@@ -76,19 +76,22 @@ fn menu() {
     }
 }
 
-/*fn encrypt() {
+/*
+fn encrypt() {
         println!("\nPlease enter the public key: \n");
         let mut public_key = String::new();
         let _ = std::io::stdin().read_line(&mut public_key);
-        let encrypted_bytes = public_key.trim_end();
-        println!("{:?}", encrypted_bytes);
-        let public_key2 = RsaPublicKey::from_pkcs1_pem(encrypted_bytes).unwrap();
-        
-        let padding = rsa::traits::PaddingScheme::encrypt(self, rng, pub_key, msg).expect("msg");
-        let mut rng = OsRng;
-        let data = b"Verschluesselte Nachricht";
+        let public_key_pem = public_key.trim_end();
+        println!("{:?}", public_key_pem);
+         
     
-        let encrypted_data = public_key2.encrypt(&mut rng, padding, &data[..]).expect("Failed to encrypt");
+        let public_key = RsaPublicKey::from_public_key_pem(public_key_pem).expect("Failed to parse public key");
+        let mut rng = CryptoRngCore::
+        let data = b"Geheime Nachricht";
+
+        let padding = rsa::traits::PaddingScheme::encrypt(self, CryptoRng, &public_key, data).expect("Fehler");
+            
+        let encrypted_data = public_key.encrypt(&mut rng, padding, data).expect("Failed to encrypt");
 } */
 
 fn sign(device: &mut YubiKey) {
@@ -133,23 +136,7 @@ fn decr_data(device: &mut YubiKey) {
         piv::SlotId::KeyManagement,
     );
     
-    fn remove_pkcs1_padding(buffer: &[u8]) -> Result<Vec<u8>, &'static str> {
-        let mut pos = 2; // Start nach dem ersten Padding-Byte `0x02`
-        if buffer[0] != 2 {
-            return Err("Invalid padding");
-        }
-        // Überspringe alle non-zero Bytes
-        while pos < buffer.len() && buffer[pos] != 0 {
-            pos += 1;
-        }
-        if pos >= buffer.len() {
-            return Err("No data after padding");
-        }
-        // Das erste `0x00` Byte überspringen, um die tatsächlichen Daten zu erhalten
-        Ok(buffer[pos + 1..].to_vec())
-    }
     
-    // Anwendungsbeispiel in deinem Code
     match decrypted {
         Ok(buffer) => {
             match remove_pkcs1_padding(&buffer) {
@@ -163,6 +150,23 @@ fn decr_data(device: &mut YubiKey) {
         Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
     }
     
+}
+
+///Entfernt PKCS1-Padding von einem Byte-Array
+fn remove_pkcs1_padding(buffer: &[u8]) -> Result<Vec<u8>, &'static str> {
+    let mut pos = 2; // Start nach dem ersten Padding-Byte `0x02`
+    if buffer[0] != 0 {
+        return Err("Invalid padding");
+    }
+    // Überspringe alle non-zero Bytes
+    while pos < buffer.len() && buffer[pos] != 0 {
+        pos += 1;
+    }
+    if pos >= buffer.len() {
+        return Err("No data after padding");
+    }
+    // Das erste `0x00` Byte überspringen, um die tatsächlichen Daten zu erhalten
+    Ok(buffer[pos + 1..].to_vec())
 }
 
 // Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
@@ -214,6 +218,7 @@ fn open_device() -> YubiKey {
 }
 
 fn pin_eingabe() -> String {
+    /* 
     println!("Please insert your 6-figures PIN:\n");
     let mut eingabe = String::new();
     let _ = std::io::stdin().read_line(&mut eingabe);
@@ -222,6 +227,8 @@ fn pin_eingabe() -> String {
         println!("\nPlease change your standard PIN.\n");
     }
     eingabe.to_string() // RÃ¼ckgabe des bereinigten Strings
+    */
+    "123456".to_string()
 }
 
 fn verify_pin(pin: String, mut device: YubiKey) -> YubiKey {
