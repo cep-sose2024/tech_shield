@@ -14,7 +14,7 @@ pub struct YubiKeyProvider {
     key_id: String,
     pub(super) yubikey: Option<yubikey::YubiKey>,
     pub(super) key_handle: Option<???tbd???>,
-    pub(super) handle: Option<???tbd???>,
+    pub(super) handle: Option<yubikey::YubiKey>,
     pub(super) key_algo: Option<yubikey::piv::AlgorithmId>,
     pub(super) sym_algo: Option<yubikey::piv::AlgorithmId>,
     pub(super) hash: Option<yubikey::piv::AlgorithmId>,
