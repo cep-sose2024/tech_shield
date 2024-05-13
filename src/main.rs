@@ -81,7 +81,6 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
 }
 
 fn sign(device: &mut YubiKey) {
-    
     println!("\nPlease enter the data to sign: \n");
     let mut data = String::new();
     let _ = std::io::stdin().read_line(&mut data);
@@ -96,8 +95,11 @@ fn sign(device: &mut YubiKey) {
     let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
     let formatted_key = format_key(generated_key);
     encode_key(formatted_key);
+
+    //TODO richtige Pineingabe einfügen
     let _ = device.verify_pin("123456".as_ref());
     let _ = device.authenticate(MgmKey::default());
+
     let signature = piv::sign_data(
         device,
         padded_data_bytes,
