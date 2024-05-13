@@ -81,8 +81,7 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
 }
 
 fn sign(device: &mut YubiKey) {
-    let _ = device.verify_pin("123456".as_ref());
-    let _ = device.authenticate(MgmKey::default());
+    
     println!("\nPlease enter the data to sign: \n");
     let mut data = String::new();
     let _ = std::io::stdin().read_line(&mut data);
@@ -97,7 +96,8 @@ fn sign(device: &mut YubiKey) {
     let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
     let formatted_key = format_key(generated_key);
     encode_key(formatted_key);
-
+    let _ = device.verify_pin("123456".as_ref());
+    let _ = device.authenticate(MgmKey::default());
     let signature = piv::sign_data(
         device,
         padded_data_bytes,
@@ -152,7 +152,7 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 fn encode_key(key: Vec<u8>) {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
-    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{:?}", key_b64);
+    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}", key_b64);
     println!("\nPublic Key: \n\n{}", key_b64_new);
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
@@ -184,7 +184,7 @@ fn open_device() -> YubiKey {
 }
 
 fn pin_eingabe() -> String {
-    println!("Please insert your 6-figures PIN:\n");
+    /* println!("Please insert your 6-figures PIN:\n");
     let mut eingabe = String::new();
     let _ = std::io::stdin().read_line(&mut eingabe);
     let eingabe = eingabe.trim(); // Entfernen von Whitespace und Newline-Zeichen
@@ -192,6 +192,8 @@ fn pin_eingabe() -> String {
         println!("\nPlease change your standard PIN.\n");
     }
     eingabe.to_string() // RÃ¼ckgabe des bereinigten Strings
+    */
+    "123456".to_string()
 }
 
 fn verify_pin(pin: String, mut device: YubiKey) -> YubiKey {
