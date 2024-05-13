@@ -10,6 +10,8 @@ fn main() {
     menu();
 }
 
+//TEST
+
 fn menu() {
     let yubikey = open_device();
 
