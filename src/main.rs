@@ -105,8 +105,7 @@ fn sign(device: &mut YubiKey) {
     );
     match signature {
         Ok(buffer) => {
-            let string = String::from_utf8_lossy(&buffer);
-            println!("\nSignature (lossy): \n{}", string);
+            println!("\nSignature: \n{:?}", buffer);
         }
         Err(err) => println!("\nFailed to sign: \n{:?}", err),
     }
