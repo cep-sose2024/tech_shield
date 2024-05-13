@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use base64::{engine::general_purpose, Engine};
 
 use hex;
@@ -6,10 +8,14 @@ use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
+
+use rand::rngs::OsRng;
+use rsa::{pkcs1::DecodeRsaPublicKey, RsaPublicKey};
+
 fn main() {
     menu();
 }
-// TEst
+
 fn menu() {
     let yubikey = open_device();
 
@@ -26,6 +32,7 @@ fn menu() {
         println!("4. List Keys");
         println!("5. Sign Data");
         println!("6. End");
+        println!("7. Encrypt");
         println!("----------------------\n");
         let mut input = String::new();
         let _ = std::io::stdin().read_line(&mut input);
@@ -34,6 +41,7 @@ fn menu() {
             "1" => {
                 let cipher = AlgorithmId::Rsa2048;
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
+                println!("{:?}", generated_key);
                 let formatted_key = format_key(generated_key);
                 encode_key(formatted_key);
             }
@@ -56,6 +64,9 @@ fn menu() {
             "6" => {
                 break;
             }
+            "7" => {
+                // encrypt();
+            }
             _ => {
                 println!("\nUnknown Input!\n");
             }
@@ -76,6 +87,20 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
 
     padded_data
 }
+/*fn encrypt() {
+        println!("\nPlease enter the public key: \n");
+        let mut public_key = String::new();
+        let _ = std::io::stdin().read_line(&mut public_key);
+        let encrypted_bytes = public_key.trim_end();
+        println!("{:?}", encrypted_bytes);
+        let public_key2 = RsaPublicKey::from_pkcs1_pem(encrypted_bytes).unwrap();
+
+        let padding = rsa::traits::PaddingScheme::encrypt(self, rng, pub_key, msg).expect("msg");
+        let mut rng = OsRng;
+        let data = b"Verschluesselte Nachricht";
+
+        let encrypted_data = public_key2.encrypt(&mut rng, padding, &data[..]).expect("Failed to encrypt");
+} */
 
 fn sign(device: &mut YubiKey) {
     println!("\nPlease enter the data to sign: \n");
@@ -125,12 +150,37 @@ fn decr_data(device: &mut YubiKey) {
         piv::AlgorithmId::Rsa2048,
         piv::SlotId::KeyManagement,
     );
+
+    fn remove_pkcs1_padding(buffer: &[u8]) -> Result<Vec<u8>, &'static str> {
+        let mut pos = 2; // Start nach dem ersten Padding-Byte `0x02`
+        if buffer[0] != 2 {
+            return Err("Invalid padding");
+        }
+        // Überspringe alle non-zero Bytes
+        while pos < buffer.len() && buffer[pos] != 0 {
+            pos += 1;
+        }
+        if pos >= buffer.len() {
+            return Err("No data after padding");
+        }
+        // Das erste `0x00` Byte überspringen, um die tatsächlichen Daten zu erhalten
+        Ok(buffer[pos + 1..].to_vec())
+    }
+
+    // Anwendungsbeispiel in deinem Code
     match decrypted {
         Ok(buffer) => {
             let hex = hex::encode(&buffer);
             println!("{}", hex);
             let string = String::from_utf8_lossy(&buffer);
             println!("\nDecrypted (lossy): \n{}", string);
+            match remove_pkcs1_padding(&buffer) {
+                Ok(data) => {
+                    let string = String::from_utf8_lossy(&data);
+                    println!("\nDecrypted (lossy): \n{}", string);
+                }
+                Err(err) => println!("Padding error: {}", err),
+            }
         }
         Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
     }
@@ -139,9 +189,10 @@ fn decr_data(device: &mut YubiKey) {
 // Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
 fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Vec<u8> {
     if let Ok(key_info) = generated_key {
-        //     certify(&mut device, generated_key);
         let value = key_info.subject_public_key;
         let bytes = BitString::as_bytes(&value).unwrap();
+        let b_65 = general_purpose::STANDARD.encode(bytes); // Convert BitString to bytes before encoding
+        println!("Key: {:?}", b_65);
         return bytes.to_vec();
     }
     println!("Fehler beim Zugriff auf den öffentlichen Schlüssel.");
@@ -153,6 +204,10 @@ fn encode_key(key: Vec<u8>) {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
     let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}", key_b64);
+    let key_b64_new = format!(
+        "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}-----END PUBLIC KEY-----",
+        key_b64
+    );
     println!("\nPublic Key: \n\n{}", key_b64_new);
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
