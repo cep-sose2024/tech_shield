@@ -81,6 +81,8 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
 }
 
 fn sign(device: &mut YubiKey) {
+    let _ = device.verify_pin("123456".as_ref());
+    let _ = device.authenticate(MgmKey::default());
     println!("\nPlease enter the data to sign: \n");
     let mut data = String::new();
     let _ = std::io::stdin().read_line(&mut data);
