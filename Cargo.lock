@@ -710,6 +710,8 @@ dependencies = [
  "encoding_rs",
  "pad",
  "pem",
+ "rand",
+ "rsa",
  "serde",
  "serde_json",
  "x509-cert",

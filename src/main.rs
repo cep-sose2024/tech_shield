@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use base64::{engine::general_purpose, Engine};
 
 use pad::PadStr;
@@ -84,9 +86,9 @@ fn encrypt() {
     
         let padding = PaddingScheme::new_pkcs1v15_encrypt();
         let mut rng = OsRng;
-        let data = b"Verschlüsselte Nachricht";
+        let data = b"Verschluesselte Nachricht";
     
-        let encrypted_data = public_key.encrypt(&mut rng, padding, &data[..]).expect("Failed to encrypt");
+        let encrypted_data = public_key2.encrypt(&mut rng, padding, &data[..]).expect("Failed to encrypt");
 }
 
 fn sign(device: &mut YubiKey) {
