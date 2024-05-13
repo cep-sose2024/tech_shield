@@ -9,7 +9,7 @@ use yubikey::{
     MgmKey, YubiKey,
 };
 
-use rsa::{PublicKey, RsaPublicKey, PaddingScheme};
+use rsa::{pkcs1::DecodeRsaPublicKey, RsaPublicKey};
 use rand::rngs::OsRng;
 
 fn main() {
@@ -67,7 +67,7 @@ fn menu() {
                 break;
             }
             "7" => {
-                encrypt();
+               // encrypt();
             }
             _ => {
                 println!("\nUnknown Input!\n");
@@ -76,20 +76,20 @@ fn menu() {
     }
 }
 
-fn encrypt() {
+/*fn encrypt() {
         println!("\nPlease enter the public key: \n");
         let mut public_key = String::new();
         let _ = std::io::stdin().read_line(&mut public_key);
-        let encrypted_bytes = public_key.trim_end().as_bytes();
+        let encrypted_bytes = public_key.trim_end();
         println!("{:?}", encrypted_bytes);
-        let public_key2 = RsaPublicKey::from_pem(public_key).unwrap();
-    
-        let padding = PaddingScheme::new_pkcs1v15_encrypt();
+        let public_key2 = RsaPublicKey::from_pkcs1_pem(encrypted_bytes).unwrap();
+        
+        let padding = rsa::traits::PaddingScheme::encrypt(self, rng, pub_key, msg).expect("msg");
         let mut rng = OsRng;
         let data = b"Verschluesselte Nachricht";
     
         let encrypted_data = public_key2.encrypt(&mut rng, padding, &data[..]).expect("Failed to encrypt");
-}
+} */
 
 fn sign(device: &mut YubiKey) {
     println!("\nPlease enter the data to sign: \n");
@@ -132,21 +132,46 @@ fn decr_data(device: &mut YubiKey) {
         piv::AlgorithmId::Rsa2048,
         piv::SlotId::KeyManagement,
     );
+    
+    fn remove_pkcs1_padding(buffer: &[u8]) -> Result<Vec<u8>, &'static str> {
+        let mut pos = 2; // Start nach dem ersten Padding-Byte `0x02`
+        if buffer[0] != 2 {
+            return Err("Invalid padding");
+        }
+        // Überspringe alle non-zero Bytes
+        while pos < buffer.len() && buffer[pos] != 0 {
+            pos += 1;
+        }
+        if pos >= buffer.len() {
+            return Err("No data after padding");
+        }
+        // Das erste `0x00` Byte überspringen, um die tatsächlichen Daten zu erhalten
+        Ok(buffer[pos + 1..].to_vec())
+    }
+    
+    // Anwendungsbeispiel in deinem Code
     match decrypted {
         Ok(buffer) => {
-            let string = String::from_utf8_lossy(&buffer);
-            println!("\nDecrypted (lossy): \n{}", string);
+            match remove_pkcs1_padding(&buffer) {
+                Ok(data) => {
+                    let string = String::from_utf8_lossy(&data);
+                    println!("\nDecrypted (lossy): \n{}", string);
+                },
+                Err(err) => println!("Padding error: {}", err),
+            }
         }
         Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
     }
+    
 }
 
 // Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
 fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Vec<u8> {
     if let Ok(key_info) = generated_key {
-        //     certify(&mut device, generated_key);
         let value = key_info.subject_public_key;
         let bytes = BitString::as_bytes(&value).unwrap();
+        let b_65 = general_purpose::STANDARD.encode(bytes); // Convert BitString to bytes before encoding
+        println!("Key: {:?}", b_65);
         return bytes.to_vec();
     }
     println!("Fehler beim Zugriff auf den öffentlichen Schlüssel.");
@@ -157,7 +182,7 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 fn encode_key(key: Vec<u8>) {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
-    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}", key_b64);
+    let key_b64_new = format!("-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}-----END PUBLIC KEY-----", key_b64);
     println!("\nPublic Key: \n\n{}", key_b64_new);
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
