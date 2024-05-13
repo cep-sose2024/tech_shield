@@ -9,9 +9,10 @@ use yubikey::{
     MgmKey, YubiKey,
 };
 
-use rand::rngs::OsRng;
-use rsa::{pkcs1::DecodeRsaPublicKey, RsaPublicKey};
-
+use rand::{rngs::OsRng, CryptoRng};
+use rsa::{
+    pkcs1::DecodeRsaPublicKey, pkcs8::DecodePublicKey, rand_core::CryptoRngCore, RsaPublicKey,
+};
 fn main() {
     menu();
 }
@@ -66,6 +67,7 @@ fn menu() {
             }
             "7" => {
                 // encrypt();
+                //      encrypt();
             }
             _ => {
                 println!("\nUnknown Input!\n");
@@ -100,6 +102,23 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
         let data = b"Verschluesselte Nachricht";
 
         let encrypted_data = public_key2.encrypt(&mut rng, padding, &data[..]).expect("Failed to encrypt");
+
+fn encrypt() {
+        println!("\nPlease enter the public key: \n");
+        let mut public_key = String::new();
+        let _ = std::io::stdin().read_line(&mut public_key);
+        let public_key_pem = public_key.trim_end();
+        println!("{:?}", public_key_pem);
+
+
+        let public_key = RsaPublicKey::from_public_key_pem(public_key_pem).expect("Failed to parse public key");
+        let mut rng = CryptoRngCore::
+        let data = b"Geheime Nachricht";
+
+        let padding = rsa::traits::PaddingScheme::encrypt(self, CryptoRng, &public_key, data).expect("Fehler");
+
+        let encrypted_data = public_key.encrypt(&mut rng, padding, data).expect("Failed to encrypt");
+>>>>>>> origin/sebastian
 } */
 
 fn sign(device: &mut YubiKey) {
@@ -168,6 +187,7 @@ fn decr_data(device: &mut YubiKey) {
     }
 
     // Anwendungsbeispiel in deinem Code
+
     match decrypted {
         Ok(buffer) => {
             let hex = hex::encode(&buffer);
@@ -203,7 +223,6 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 fn encode_key(key: Vec<u8>) {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
-    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}", key_b64);
     let key_b64_new = format!(
         "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}-----END PUBLIC KEY-----",
         key_b64
@@ -239,7 +258,8 @@ fn open_device() -> YubiKey {
 }
 
 fn pin_eingabe() -> String {
-    /* println!("Please insert your 6-figures PIN:\n");
+    /*
+    println!("Please insert your 6-figures PIN:\n");
     let mut eingabe = String::new();
     let _ = std::io::stdin().read_line(&mut eingabe);
     let eingabe = eingabe.trim(); // Entfernen von Whitespace und Newline-Zeichen
