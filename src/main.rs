@@ -1,4 +1,7 @@
+use asn1_der::typed::DerEncodable;
 use base64::{engine::general_purpose, Engine};
+use base64::engine::Config;
+use der::Encode;
 
 use pad::PadStr;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
@@ -6,6 +9,13 @@ use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
+//markus branch
+/*
+extern crate ring;
+use ring::signature::{RsaPublicKeyComponents, RSA_PUBLIC_KEY_PUBLIC_MODULUS_POSITIVE_FLAG};
+use ring::signature::KeyPair;
+use ring::signature::RSA_PUBLIC_KEY_PUBLIC_EXPONENT_VALUE;
+ */
 fn main() {
     menu();
 }
@@ -34,6 +44,7 @@ fn menu() {
             "1" => {
                 let cipher = AlgorithmId::Rsa2048;
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
+                println!("schlüsselchen: {:?}",encode_key(generated_key.as_ref().unwrap().to_der().unwrap()));
                 let formatted_key = format_key(generated_key);
                 encode_key(formatted_key);
             }
@@ -124,13 +135,19 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
     println!("Fehler beim Zugriff auf den öffentlichen Schlüssel.");
     Vec::new() // Gib einen leeren Vektor zurück, wenn ein Fehler auftritt
 }
+use ring::signature;
+use ring::signature::RsaPublicKeyComponents;
 
 // Key in PEM und base64 konvertieren
 fn encode_key(key: Vec<u8>) {
     // KEy in Base64 umwandeln
+    println!("erstmal: {:?}",&key);
+    //let key_b64_new = format!("-----BEGIN PUBLIC KEY-----\n{:?}\n-----END PUBLIC KEY-----", key);
     let key_b64 = general_purpose::STANDARD.encode(&key);
-    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{:?}", key_b64);
-    println!("\nPublic Key: \n\n{}", key_b64_new);
+   // let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{:?}", key_b64);
+    println!("\nIst das der einzigwahre Public Key?: \n\n{}", key_b64);
+//    let bipo = key.encode();
+  //  println!("hieeroooooagaopeihgpoihpo: {:?}", bipo);
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
         println!("\nPEM-Key:{:?}", pem_key);
@@ -231,9 +248,65 @@ pub fn gen_key(
         yubikey::PinPolicy::Default,
         yubikey::TouchPolicy::Never,
     );
+    use asn1_der::{
+        DerObject,
+        typed::{ DerEncodable, DerDecodable }
+    };
+    //let gen_key= export_rsa_public_key(&gen_key);
+    let key_bytes = gen_key.as_ref();
+//****************
+    let mut index =0;
+    let subject_public_key_info: Vec<u8>=gen_key.as_ref().unwrap().to_der().unwrap();
+    while index < subject_public_key_info.len()-1{
+        if subject_public_key_info[index] == 0x03 && subject_public_key_info[index+1]&0x80 ==0{
+            index +=2;
+            let length_byte = subject_public_key_info[index]as usize;
+            index+=1;
+            let subject_public_key_start = index;
+            let subject_ppublic_key_length = length_byte;
+            let subject_public_key = &subject_public_key_info[subject_public_key_start..(subject_public_key_start + subject_ppublic_key_length)];
+            let subject_public_key_base64 = base64::encode(subject_public_key);
+            println!("feeeeeeeeeeeeeeeertig: \n{}\n\n", subject_public_key_base64);
+            break;
+        }
+        else {
+            index+=1;
+        }
+
+    }
+    /*
+    let subject_public_key: Vec<u8>=vec![];
+    let subject_public_key_base64 = base64::encode(&subject_public_key);
+    println!("{}",subject_public_key_base64);
+*/
+    //let parsed_key = u8::decode(key_bytes).expect("uppppsala");
+    /*let zwischen = format_key(&gen_key);
+    let key_b64 = general_purpose::STANDARD.encode(zwischen);
+    println!("hooooollllaa {:#?}", key_b64);
+    */
+
     return gen_key;
 }
+/*
+fn export_rsa_public_key(public_key: &PivRsaPublicKey) -> Result<String, Box<dyn std::error::Error>> {
+    // Konvertiere Modulus und Exponent in RSA-Struktur
+    let rsa_public_key_components = RsaPublicKeyComponents {
+        n: &public_key.modulus,
+        e: &public_key.public_exponent,
+    };
 
+    // Erstelle den RSA-Public Key
+    let rsa_public_key = ring::signature::RSAKeyPairComponents::from_components(&rsa_public_key_components)?;
+
+    // Exportiere den RSA-Public Key im Subject Public Key Info Format
+    let mut encoded_key = Vec::new();
+    rsa_public_key.encode_pkcs8_unencrypted_pkcs1(&mut encoded_key)?;
+
+    // Base64-Kodiere den exportierten Schlüssel
+    let b64_encoded_key = base64::encode_config(&encoded_key, base64::STANDARD);
+
+    Ok(b64_encoded_key)
+}*/
 // Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
 /* pub fn certify(
     device: &mut YubiKey,
