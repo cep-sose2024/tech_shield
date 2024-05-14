@@ -36,8 +36,8 @@ fn menu() {
             "1" => {
                 let cipher = AlgorithmId::Rsa2048;
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
-                let formatted_key = format_key(generated_key);
-                encode_key(formatted_key);
+                let public_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
+                
             }
             "2" => {
                 decr_data(&mut yubikey);
@@ -131,7 +131,7 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 fn encode_key(key: Vec<u8>) {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
-    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{:?}", key_b64);
+
     println!("\nPublic Key: \n\n{}", key_b64_new);
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
