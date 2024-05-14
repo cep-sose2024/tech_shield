@@ -1,8 +1,8 @@
 use base64::{engine::general_purpose, Engine};
 
 use hex;
-use rsa::Pss;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use rsa::sha2;
+use sha2::{Digest, Sha256};
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
@@ -117,12 +117,18 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
 }
 
 fn hash_data(data: Vec<u8>) -> Vec<u8> {
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    let data = hasher.finalize();
+    data.to_vec()
+
+    /*  let mut hasher = DefaultHasher::new();
     data.hash(&mut hasher);
     let hash = hasher.finish();
     println!("Hash: {}", hash);
     let data_vec = hash.to_be_bytes().to_vec();
     data_vec
+    */
 }
 
 fn sign(device: &mut YubiKey) {
