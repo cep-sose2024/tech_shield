@@ -263,8 +263,7 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
     if let Ok(key_info) = generated_key {
         let value = key_info.subject_public_key;
         let bytes = BitString::as_bytes(&value).unwrap();
-        let b_65 = general_purpose::STANDARD.encode(bytes); // Convert BitString to bytes before encoding
-        println!("Key: {:?}", b_65);
+
         return bytes.to_vec();
     }
     println!("Fehler beim Zugriff auf den öffentlichen Schlüssel.");
@@ -275,10 +274,7 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 fn encode_key(key: Vec<u8>) {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
-    let key_b64_new = format!(
-        "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}-----END PUBLIC KEY-----",
-        key_b64
-    );
+    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}", key_b64);
     println!("\nPublic Key: \n\n{}", key_b64_new);
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
