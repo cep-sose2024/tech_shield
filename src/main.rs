@@ -1,17 +1,12 @@
-use std::io::Read;
-
 use base64::{engine::general_purpose, Engine};
 
 use hex;
+use rsa::Pss;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
-};
-
-use rand::{rngs::OsRng, CryptoRng};
-use rsa::{
-    pkcs1::DecodeRsaPublicKey, pkcs8::DecodePublicKey, rand_core::CryptoRngCore, RsaPublicKey,
 };
 fn main() {
     menu();
@@ -76,19 +71,6 @@ fn menu() {
     }
 }
 
-fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
-    let padding_length = block_size - data.len() - 3;
-    let mut padded_data = Vec::with_capacity(block_size);
-    padded_data.push(0x00);
-    padded_data.push(0x01);
-    for _ in 0..padding_length {
-        padded_data.push(0xFF);
-    }
-    padded_data.push(0x00);
-    padded_data.extend_from_slice(data);
-
-    padded_data
-}
 /*fn encrypt() {
         println!("\nPlease enter the public key: \n");
         let mut public_key = String::new();
@@ -118,19 +100,46 @@ fn encrypt() {
         let padding = rsa::traits::PaddingScheme::encrypt(self, CryptoRng, &public_key, data).expect("Fehler");
 
         let encrypted_data = public_key.encrypt(&mut rng, padding, data).expect("Failed to encrypt");
->>>>>>> origin/sebastian
 } */
+
+fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
+    let padding_length = block_size - data.len() - 3;
+    let mut padded_data = Vec::with_capacity(block_size);
+    padded_data.push(0x00);
+    padded_data.push(0x01);
+    for _ in 0..padding_length {
+        padded_data.push(0xFF);
+    }
+    padded_data.push(0x00);
+    padded_data.extend_from_slice(data);
+
+    padded_data
+}
+
+fn hash_data(data: Vec<u8>) -> Vec<u8> {
+    let mut hasher = DefaultHasher::new();
+    data.hash(&mut hasher);
+    let hash = hasher.finish();
+    println!("Hash: {}", hash);
+    let data_vec = hash.to_be_bytes().to_vec();
+    data_vec
+}
 
 fn sign(device: &mut YubiKey) {
     println!("\nPlease enter the data to sign: \n");
     let mut data = String::new();
     let _ = std::io::stdin().read_line(&mut data);
 
-    let data_str = data.trim();
-    let data_u8 = data_str.as_bytes();
+    let data_vec = data.trim().as_bytes().to_vec();
 
-    let padded_data = apply_pkcs1v15_padding(data_u8, 256);
-    let padded_data_bytes: &[u8] = &padded_data;
+    // Input wird gehasht
+    let hashed = hash_data(data_vec);
+    let hashed_u8: &[u8] = &hashed;
+
+    // Padding wird zum Hash hinzugefügt
+    let padded_data = apply_pkcs1v15_padding(hashed_u8, 256);
+
+    let padded_u8: &[u8] = &padded_data;
 
     // new key for signing in Signature-Slot
     let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
@@ -141,9 +150,10 @@ fn sign(device: &mut YubiKey) {
     let _ = device.verify_pin("123456".as_ref());
     let _ = device.authenticate(MgmKey::default());
 
+    // Signatur durchführen
     let signature = piv::sign_data(
         device,
-        padded_data_bytes,
+        padded_u8,
         piv::AlgorithmId::Rsa2048,
         piv::SlotId::Signature,
     );
