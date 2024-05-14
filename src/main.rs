@@ -115,6 +115,10 @@ fn verify_signature() {
     println!("\nPlease enter the public key: \n");
     let mut key = String::new();
     let _ = std::io::stdin().read_line(&mut key);
+    let key_decoded = general_purpose::STANDARD
+        .decode(key.trim().as_bytes())
+        .unwrap();
+    let key_u8: &[u8] = key_decoded.as_slice();
 
     println!("\nPlease enter the signature: \n");
     let mut signed = String::new();
@@ -129,7 +133,7 @@ fn verify_signature() {
     let _ = std::io::stdin().read_line(&mut raw);
     let raw_u8: &[u8] = raw.trim().as_bytes();
 
-    let pubkey = signature::UnparsedPublicKey::new(&signature::RSA_PKCS1_2048_8192_SHA256, key);
+    let pubkey = signature::UnparsedPublicKey::new(&signature::RSA_PKCS1_2048_8192_SHA256, key_u8);
 
     let sign_result = pubkey.verify(raw_u8, signed_u8);
 
