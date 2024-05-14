@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use base64::{engine::general_purpose, Engine};
 
 use pad::PadStr;
@@ -8,9 +6,6 @@ use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
-
-use rsa::{pkcs1::DecodeRsaPublicKey, pkcs8::DecodePublicKey, rand_core::CryptoRngCore, RsaPublicKey};
-use rand::{rngs::OsRng, CryptoRng};
 
 fn main() {
     menu();
