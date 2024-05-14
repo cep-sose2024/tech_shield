@@ -132,7 +132,7 @@ fn encode_key(key: Vec<u8>) {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
 
-    println!("\nPublic Key: \n\n{}", key_b64_new);
+    println!("\nPublic Key: \n\n{}", key_b64);
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
         println!("\nPEM-Key:{:?}", pem_key);
