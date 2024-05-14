@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose, Engine};
-
+use der::Encode;
 use pad::PadStr;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
