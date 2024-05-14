@@ -134,8 +134,8 @@ fn verify_signature() {
     let sign_result = pubkey.verify(raw_u8, signed_u8);
 
     match sign_result {
-        Ok(_) => println!("Signature is valid"),
-        Err(_) => println!("Signature is invalid"),
+        Ok(test) => println!("Signature is valid: {:?}", test),
+        Err(err) => println!("Signature is invalid: {:?}", err),
     }
 }
 
