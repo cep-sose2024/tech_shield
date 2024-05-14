@@ -1,4 +1,7 @@
-use base64::{engine::general_purpose, Engine};
+use base64::{
+    engine::{self, general_purpose},
+    Engine,
+};
 
 use hex;
 use ring::signature;
@@ -31,6 +34,7 @@ fn menu() {
         println!("5. Sign Data");
         println!("6. End");
         println!("7. Encrypt");
+        println!("8. Verify Signature");
         println!("----------------------\n");
         let mut input = String::new();
         let _ = std::io::stdin().read_line(&mut input);
@@ -115,7 +119,10 @@ fn verify_signature() {
     println!("\nPlease enter the signature: \n");
     let mut signed = String::new();
     let _ = std::io::stdin().read_line(&mut signed);
-    let signed_u8: &[u8] = signed.trim().as_bytes();
+    let signed_decoded = general_purpose::STANDARD
+        .decode(signed.trim().as_bytes())
+        .unwrap();
+    let signed_u8: &[u8] = signed_decoded.as_slice();
 
     println!("\nPlease enter the raw data: \n");
     let mut raw = String::new();
