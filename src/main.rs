@@ -1,10 +1,12 @@
 use base64::{engine::general_purpose, Engine};
 
 use hex;
+use ring::signature;
 use rsa::sha2;
 use sha2::{Digest, Sha256};
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
+    certificate::yubikey_signer,
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
@@ -64,6 +66,9 @@ fn menu() {
                 // encrypt();
                 //      encrypt();
             }
+            "8" => {
+                verify_signature();
+            }
             _ => {
                 println!("\nUnknown Input!\n");
             }
@@ -102,6 +107,31 @@ fn encrypt() {
         let encrypted_data = public_key.encrypt(&mut rng, padding, data).expect("Failed to encrypt");
 } */
 
+fn verify_signature() {
+    println!("\nPlease enter the public key: \n");
+    let mut key = String::new();
+    let _ = std::io::stdin().read_line(&mut key);
+
+    println!("\nPlease enter the signature: \n");
+    let mut signed = String::new();
+    let _ = std::io::stdin().read_line(&mut signed);
+    let signed_u8: &[u8] = signed.trim().as_bytes();
+
+    println!("\nPlease enter the raw data: \n");
+    let mut raw = String::new();
+    let _ = std::io::stdin().read_line(&mut raw);
+    let raw_u8: &[u8] = raw.trim().as_bytes();
+
+    let pubkey = signature::UnparsedPublicKey::new(&signature::RSA_PKCS1_2048_8192_SHA256, key);
+
+    let sign_result = pubkey.verify(raw_u8, signed_u8);
+
+    match sign_result {
+        Ok(_) => println!("Signature is valid"),
+        Err(_) => println!("Signature is invalid"),
+    }
+}
+
 fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
     let padding_length = block_size - data.len() - 3;
     let mut padded_data = Vec::with_capacity(block_size);
@@ -121,14 +151,6 @@ fn hash_data(data: Vec<u8>) -> Vec<u8> {
     hasher.update(data);
     let data = hasher.finalize();
     data.to_vec()
-
-    /*  let mut hasher = DefaultHasher::new();
-    data.hash(&mut hasher);
-    let hash = hasher.finish();
-    println!("Hash: {}", hash);
-    let data_vec = hash.to_be_bytes().to_vec();
-    data_vec
-    */
 }
 
 fn sign(device: &mut YubiKey) {
@@ -165,7 +187,10 @@ fn sign(device: &mut YubiKey) {
     );
     match signature {
         Ok(buffer) => {
-            println!("\nSignature: \n{:?}", buffer);
+            println!(
+                "\nSignature: \n{:?}",
+                general_purpose::STANDARD.encode(buffer)
+            );
         }
         Err(err) => println!("\nFailed to sign: \n{:?}", err),
     }
