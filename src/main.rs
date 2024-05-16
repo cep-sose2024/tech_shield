@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose, Engine};
-
+use openssl::rsa::{Rsa, Padding};
 use pad::PadStr;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
@@ -28,8 +28,8 @@ fn menu() {
         println!("3. Show Metadata");
         println!("4. List Keys");
         println!("5. Sign Data");
-        println!("6. End");
-        println!("7. Encrypt");
+        println!("6. Encrypt");
+        println!("7. End");
         println!("----------------------\n");
         let mut input = String::new();
         let _ = std::io::stdin().read_line(&mut input);
@@ -43,7 +43,7 @@ fn menu() {
                 encode_key(formatted_key);
             }
             "2" => {
-                decr_data(&mut yubikey);
+                decr_data_rsa(&mut yubikey);
             }
             "3" => {
                 println!(
@@ -59,10 +59,10 @@ fn menu() {
                 sign(&mut yubikey);
             }
             "6" => {
-                break;
+                encrypt_rsa();
             }
             "7" => {
-          //      encrypt();
+                break;
             }
             _ => {
                 println!("\nUnknown Input!\n");
@@ -71,23 +71,29 @@ fn menu() {
     }
 }
 
-/*
-fn encrypt() {
-        println!("\nPlease enter the public key: \n");
-        let mut public_key = String::new();
-        let _ = std::io::stdin().read_line(&mut public_key);
-        let public_key_pem = public_key.trim_end();
-        println!("{:?}", public_key_pem);
-         
-    
-        let public_key = RsaPublicKey::from_public_key_pem(public_key_pem).expect("Failed to parse public key");
-        let mut rng = CryptoRngCore::
-        let data = b"Geheime Nachricht";
 
-        let padding = rsa::traits::PaddingScheme::encrypt(self, CryptoRng, &public_key, data).expect("Fehler");
-            
-        let encrypted_data = public_key.encrypt(&mut rng, padding, data).expect("Failed to encrypt");
-} */
+fn encrypt_rsa() {
+    println!("\nPlease enter the data to encrypt: \n");
+    let mut data = String::new();
+    let _ = std::io::stdin().read_line(&mut data);
+    let data = data.trim();
+    let data = data.as_bytes();
+
+    println!("\nPlease enter the public key for encryption: \n");
+    let mut rsa = String::new();
+    let _ = std::io::stdin().read_line(&mut rsa);
+    let public_key = rsa.trim();
+    let public_key_pem = format!("-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----", public_key);
+
+    let rsa = Rsa::public_key_from_pem(public_key_pem.as_bytes()).expect("failed to create RSA from public key PEM");
+    
+    let mut encrypted_data = vec![0; rsa.size() as usize];
+    rsa.public_encrypt(data, &mut encrypted_data, Padding::PKCS1)
+        .expect("failed to encrypt data");
+    let encrypted_data_base64 = general_purpose::STANDARD.encode(encrypted_data);
+    println!("/n/n{:?}", encrypted_data_base64);
+
+} 
 
 fn sign(device: &mut YubiKey) {
     println!("\nPlease enter the data to sign: \n");
@@ -116,7 +122,7 @@ fn sign(device: &mut YubiKey) {
     }
 }
 
-fn decr_data(device: &mut YubiKey) {
+fn decr_data_rsa(device: &mut YubiKey) {
     println!("\nPlease enter the encrypted data: \n");
     let mut encrypted = String::new();
     let _ = std::io::stdin().read_line(&mut encrypted);
@@ -264,15 +270,7 @@ fn verify_pin(pin: String, mut device: YubiKey) -> YubiKey {
     }
 }
 
-pub fn get_slot_list(device: &mut YubiKey) {
-    let slot_list = Key::list(device);
-    // let slot = slot_list.unwrap().slot();
-    // println!("Slotliste {:?}", slot_list);
-    for slot in &slot_list {
-        println!("Iteration");
-        println!("\nSlot Liste: {:?}", slot);
-    }
-}
+
 
 pub fn gen_key(
     device: &mut YubiKey,
@@ -288,53 +286,3 @@ pub fn gen_key(
     );
     return gen_key;
 }
-
-// Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
-/* pub fn certify(
-    device: &mut YubiKey,
-    generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
-) {
-    let ser = device.serial();
-    let x_ser = x509_cert::serial_number::SerialNumber::new(ser.to_string().as_bytes());
-    let time = x509_cert::time::Validity::from_now(Duration::MAX);
-    //   let extensions: &[x509_cert::ext::Extension] = &[];
-    let gen_key_unwrapped = generated_key.unwrap();
-    let subject = create_rdn();
-    let extensions: &[x509_cert::ext::Extension] = &[];
-
-    let gen_cert = certificate::Certificate::generate_self_signed(
-        device,
-        piv::SlotId::KeyManagement,
-        x_ser.unwrap(),
-        time.unwrap(),
-        subject,
-        gen_key_unwrapped,
-        extensions,
-    );
-}
-
-// Subject erstellen für generate_self_signed
-pub fn create_rdn() -> RdnSequence {
-    let vec: Vec<RdnSequence> = Vec::new();
-    let set: SetOfVec<AttributeTypeAndValue> = SetOfVec::new();
-
-    let oid_cn = ObjectIdentifier::new("2.5.4.3").unwrap();
-    let name_byte = "Jannis".as_bytes();
-    let name_box = Box::new(name_byte);
-    let cn_value = AttributeValue::new(der::Tag::Utf8String, name_box).unwrap();
-
-    let cn = format!(
-        "oid: {},
-        value: {},",
-        oid_cn.to_string(),
-        cn_value
-    );
-
-    let test = RdnSequence::from_str(&cn);
-    match test {
-        Ok(handle) => println!("Erfolgreich: {:?}", handle),
-        Err(err) => println!("Failed: {:?}", err),
-    };
-    return test.unwrap();
-}
-*/
