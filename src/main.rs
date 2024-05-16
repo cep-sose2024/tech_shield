@@ -65,6 +65,24 @@ fn menu() {
     }
 }
 
+fn encrypt_rsa(rsa_string: String) -> String{
+    println!("\nPlease enter the data to encrypt: \n");
+    let mut data = String::new();
+    let _ = std::io::stdin().read_line(&mut data);
+    let data = data.trim();
+    let data = data.as_bytes();
+
+    let rsa = Rsa::public_key_from_pem(rsa_string.as_bytes()).expect("failed to create RSA from public key PEM");
+    
+    let mut encrypted_data = vec![0; rsa.size() as usize];
+    rsa.public_encrypt(data, &mut encrypted_data, Padding::PKCS1)
+        .expect("failed to encrypt data");
+    let encrypted_data_base64 = general_purpose::STANDARD.encode(encrypted_data);
+    println!("\n\nEncrypted Data: {:?}", encrypted_data_base64);
+    encrypted_data_base64
+
+} 
+
 fn sign(device: &mut YubiKey) {
     println!("\nPlease enter the data to sign: \n");
     let data = String::new();
