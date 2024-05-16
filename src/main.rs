@@ -54,7 +54,7 @@ fn menu() {
                     "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
                     rsa_pub_key
                 );
-                println!("PEM-Key:\n\n{}", key_b64_new);
+                println!("\n\nPEM-Key:\n\n{}", key_b64_new);
             }
             "2" => {
                 encrypted = encrypt_rsa(rsa_pub_key.clone());
