@@ -2,12 +2,22 @@ use base64::{
     engine::{self, general_purpose},
     Engine,
 };
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use hex;
 use md5::{Digest, Md5};
+use openssl::sign::{Signer as RSASigner, Verifier as RSAVerifier};
+use openssl::{
+    hash::MessageDigest,
+    pkey::{PKey, Public},
+    rsa::Rsa,
+};
+use pem::{encode, Pem};
 use rand::prelude;
 use ring::signature;
 use rsa::{sha2, RsaPrivateKey};
 use sha2::Sha256;
+use sodiumoxide::crypto::box_;
+use sodiumoxide::crypto::sign::ed25519;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     certificate::yubikey_signer,
@@ -74,7 +84,12 @@ fn menu() {
                 //      encrypt();
             }
             "8" => {
-                verify_signature();
+                //verify_signature();
+                if rsa_verify_signature() {
+                    println!("Signature is valid.");
+                } else {
+                    println!("Signature is invalid.");
+                }
             }
             _ => {
                 println!("\nUnknown Input!\n");
@@ -97,36 +112,6 @@ fn generate_keypair_for_signing() {
     println!("Public key: {}", public_key);
 }
 */
-/*fn encrypt() {
-        println!("\nPlease enter the public key: \n");
-        let mut public_key = String::new();
-        let _ = std::io::stdin().read_line(&mut public_key);
-        let encrypted_bytes = public_key.trim_end();
-        println!("{:?}", encrypted_bytes);
-        let public_key2 = RsaPublicKey::from_pkcs1_pem(encrypted_bytes).unwrap();
-
-        let padding = rsa::traits::PaddingScheme::encrypt(self, rng, pub_key, msg).expect("msg");
-        let mut rng = OsRng;
-        let data = b"Verschluesselte Nachricht";
-
-        let encrypted_data = public_key2.encrypt(&mut rng, padding, &data[..]).expect("Failed to encrypt");
-
-fn encrypt() {
-        println!("\nPlease enter the public key: \n");
-        let mut public_key = String::new();
-        let _ = std::io::stdin().read_line(&mut public_key);
-        let public_key_pem = public_key.trim_end();
-        println!("{:?}", public_key_pem);
-
-
-        let public_key = RsaPublicKey::from_public_key_pem(public_key_pem).expect("Failed to parse public key");
-        let mut rng = CryptoRngCore::
-        let data = b"Geheime Nachricht";
-
-        let padding = rsa::traits::PaddingScheme::encrypt(self, CryptoRng, &public_key, data).expect("Fehler");
-
-        let encrypted_data = public_key.encrypt(&mut rng, padding, data).expect("Failed to encrypt");
-} */
 
 fn verify_signature() {
     println!("\nPlease enter the public key: \n");
@@ -189,6 +174,46 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
     }
 }
 */
+fn rsa_verify_signature(/*signature: &[u8], pkey: &PKey<Public>*/) -> bool {
+    // Public Key einlesen
+    println!("\nPlease enter the public key: \n");
+    let mut key = String::new();
+    let _ = std::io::stdin().read_line(&mut key);
+    let key_decoded = general_purpose::STANDARD
+        .decode(key.trim().as_bytes())
+        .unwrap();
+    // Umwandlung in u8 -> PKey
+    let key_u8: &[u8] = key_decoded.as_slice();
+    let key_inst = openssl::rsa::Rsa::public_key_from_pem(key_u8).unwrap();
+    let key_pkey = PKey::from_rsa(key_inst).unwrap();
+
+    // Signatur einlesen
+    println!("\nPlease enter the signature: \n");
+    let mut signed = String::new();
+    let _ = std::io::stdin().read_line(&mut signed);
+    let signed_decoded = general_purpose::STANDARD
+        .decode(signed.trim().as_bytes())
+        .unwrap();
+    let signed_u8: &[u8] = signed_decoded.as_slice();
+
+    // Unsignierte Daten einlesen
+    println!("\nPlease enter the raw data: \n");
+    let mut raw = String::new();
+    let _ = std::io::stdin().read_line(&mut raw);
+    let encrypted_bytes = raw.trim_end().as_bytes();
+
+    // Signatur verifizieren
+    let mut verifier =
+        RSAVerifier::new(MessageDigest::sha256(), &key_pkey).expect("failed to create verifier");
+    verifier
+        .update(encrypted_bytes)
+        .expect("failed to update verifier");
+    verifier
+        .verify(signed_u8)
+        .expect("failed to verify signature")
+}
+
+// Daten hashen nach beliebigem Algorithmus
 fn hash_data(data: Vec<u8>, hash_algo: &str) -> Vec<u8> {
     if hash_algo == "SHA256" {
         let mut hasher = Sha256::new();
@@ -227,10 +252,10 @@ fn sign(device: &mut YubiKey) {
     let padded_u8: &[u8] = &padded_data;
 
     // new key for signing in Signature-Slot
-    /*  let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
-       let formatted_key = format_key(generated_key);
-       encode_key(formatted_key);
-    */
+    let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
+    let formatted_key = format_key(generated_key);
+    encode_key(formatted_key);
+
     //TODO richtige Pineingabe einfügen
     let _ = device.verify_pin("123456".as_ref());
     let _ = device.authenticate(MgmKey::default());
@@ -329,19 +354,21 @@ fn encode_key(key: Vec<u8>) {
     let key_b64 = general_purpose::STANDARD.encode(&key);
     let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}", key_b64);
     println!("\nPublic Key: \n\n{}", key_b64_new);
-    /*    let pem = Pem::new("PUBLIC KEY", key);
-        let pem_key = encode(&pem);
-        println!("\nPEM-Key:{:?}", pem_key);
-        let mut pem_key_new = pem_key.replace("\r", "");
+    // let pem = Pem::new("PUBLIC KEY", key_b64_new);
+    let pem_key = format!(
+        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+        key_b64_new
+    );
+    println!("\nPEM-Key:\n\n{}", pem_key);
+    /*   let mut pem_key_new = pem_key.replace("\r", "");
         pem_key_new = pem_key_new.replace("\n", "");
-        println!("\n New: {:?}", pem_key_new);
+        println!("\n New:\n\n{}", pem_key_new);
 
         let mut keys: Vec<String> = Vec::new();
         keys.push(pem_key);
         keys.push(pem_key_new);
-
-        return keys;
     */
+    // return keys;
 }
 
 fn open_device() -> YubiKey {
