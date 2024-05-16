@@ -4,6 +4,7 @@ use openssl::rsa::{Padding, Rsa};
 use openssl::sign::Verifier as RSAVerifier;
 use openssl::{hash::MessageDigest, pkey::PKey};
 use ring::signature;
+use der::Encode;
 use rsa::sha2;
 use sha2::Sha256;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
@@ -45,9 +46,8 @@ fn menu() {
             "1" => {
                 let cipher = AlgorithmId::Rsa2048;
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
-                println!("{:?}", generated_key);
-                let formatted_key = format_key(generated_key);
-                rsa_pub_key = encode_key(formatted_key);
+                println!("public key: {:?}",encode_key(generated_key.as_ref().unwrap().to_der().unwrap()));
+
             }
             "2" => {
                 decr_data_rsa(&mut yubikey, encrypted.clone());
@@ -330,12 +330,7 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 fn encode_key(key: Vec<u8>) -> String {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
-    let key_b64_new = format!(
-        "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}\n-----END PUBLIC KEY-----",
-        key_b64
-    );
-    println!("\nPublic Key: \n\n{}", key_b64_new);
-    key_b64_new
+    return key_b64;
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
         println!("\nPEM-Key:{:?}", pem_key);
