@@ -1,11 +1,12 @@
 use base64::{engine::general_purpose, Engine};
-use der::Encode;
+use openssl::rsa::{Rsa, Padding};
 use pad::PadStr;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
+
 fn main() {
     menu();
 }
@@ -42,7 +43,7 @@ fn menu() {
                 
             }
             "2" => {
-                decr_data(&mut yubikey);
+                decr_data_rsa(&mut yubikey, encrypted.clone());
             }
             "3" => {
                 println!(
