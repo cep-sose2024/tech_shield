@@ -2,10 +2,10 @@ use base64::{
     engine::{self, general_purpose},
     Engine,
 };
-
 use hex;
+use rand::prelude;
 use ring::signature;
-use rsa::sha2;
+use rsa::{sha2, RsaPrivateKey};
 use sha2::{Digest, Sha256};
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
@@ -61,6 +61,7 @@ fn menu() {
                 println!("{:?}", list);
             }
             "5" => {
+                //       generate_keypair_for_signing();
                 sign(&mut yubikey);
             }
             "6" => {
@@ -79,7 +80,21 @@ fn menu() {
         }
     }
 }
+/*
+fn generate_keypair_for_signing() {
+    let rng = rand::thread_rng();
+    let keypair = RsaPrivateKey::new(&mut rng, 2048).expect("Failed to generate key pair");
+    let private_key = keypair
+        .private_key_to_pem()
+        .expect("Failed to convert private key to PEM");
+    let public_key = keypair
+        .public_key_to_pem()
+        .expect("Failed to convert public key to PEM");
 
+    println!("Private key: {}", private_key);
+    println!("Public key: {}", public_key);
+}
+*/
 /*fn encrypt() {
         println!("\nPlease enter the public key: \n");
         let mut public_key = String::new();
@@ -131,11 +146,15 @@ fn verify_signature() {
     println!("\nPlease enter the raw data: \n");
     let mut raw = String::new();
     let _ = std::io::stdin().read_line(&mut raw);
-    let raw_u8: &[u8] = raw.trim().as_bytes();
+    //let raw_u8: &[u8] = raw.trim().as_bytes();
+    // muss gehasht werden???
+    let raw_vec = raw.trim().as_bytes().to_vec();
+    let raw_hashed = hash_data(raw_vec);
+    let raw_u8: &[u8] = &raw_hashed;
 
     let pubkey = signature::UnparsedPublicKey::new(&signature::RSA_PKCS1_2048_8192_SHA256, key_u8);
 
-    let sign_result = pubkey.verify(raw_u8, signed_u8);
+    let sign_result = pubkey.verify(&raw_u8, signed_u8);
 
     match sign_result {
         Ok(test) => println!("Signature is valid: {:?}", test),
@@ -153,10 +172,21 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
     }
     padded_data.push(0x00);
     padded_data.extend_from_slice(data);
-
+    //println!("{:?}", padded_data);
     padded_data
 }
 
+/*fn remove_pkcs1_padding(signature: &[u8], length: usize) -> Vec<u8> {
+    let total_length = signature.len(); // Gesamtlänge der Datenblockgröße für RSA2048
+    let padding_length = total_length - length;
+
+    if padding_length < total_length {
+        signature[padding_length..].to_vec()
+    } else {
+        Vec::new() // Leere Vektor zurückgeben, wenn die Berechnung fehlschlägt
+    }
+}
+*/
 fn hash_data(data: Vec<u8>) -> Vec<u8> {
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -168,6 +198,8 @@ fn sign(device: &mut YubiKey) {
     println!("\nPlease enter the data to sign: \n");
     let mut data = String::new();
     let _ = std::io::stdin().read_line(&mut data);
+
+    //   let length = data.len();
 
     let data_vec = data.trim().as_bytes().to_vec();
 
@@ -196,11 +228,18 @@ fn sign(device: &mut YubiKey) {
         piv::AlgorithmId::Rsa2048,
         piv::SlotId::Signature,
     );
+
     match signature {
         Ok(buffer) => {
+            /* let signature_vec = buffer.to_vec();
+            let signature_u8: &[u8] = signature_vec.as_slice();
+            println!("\nSignature: \n{:?}", signature_u8);
+            let unpadded = remove_pkcs1_padding(signature_u8, 32);
+            println!("{:?}", general_purpose::STANDARD.encode(&unpadded));
+            */
             println!(
-                "\nSignature: \n{:?}",
-                general_purpose::STANDARD.encode(buffer)
+                "\nSignature: \n\n{}",
+                general_purpose::STANDARD.encode(&buffer)
             );
         }
         Err(err) => println!("\nFailed to sign: \n{:?}", err),
