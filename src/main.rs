@@ -48,11 +48,6 @@ fn menu() {
                 let cipher = AlgorithmId::Rsa2048;
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
                 rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
-
-                rsa_pub_key = format!(
-                    "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-                    rsa_pub_key.trim()
-                );
                 println!("\n\nPEM-Key:\n\n{}", rsa_pub_key);
             }
             "2" => {
@@ -158,14 +153,11 @@ fn rsa_verify_signature(/*signature: &[u8], pkey: &PKey<Public>*/) -> bool {
     println!("\nPlease enter the public key: \n");
     let mut key = String::new();
     let _ = std::io::stdin().read_line(&mut key);
-    let key_decoded = general_purpose::STANDARD
-        .decode(key.trim().as_bytes())
-        .unwrap();
+    let key_test = general_purpose::STANDARD.decode(key.trim()).unwrap();
     // Umwandlung in u8 -> PKey
-    let key_u8: &[u8] = key_decoded.as_slice();
-    let key_inst = openssl::rsa::Rsa::public_key_from_der(key_u8).unwrap();
+    let key_u8: &[u8] = key_test.as_slice();
+    let key_inst = openssl::rsa::Rsa::public_key_from_pem(key_u8).unwrap();
     let key_pkey = PKey::from_rsa(key_inst).unwrap();
-
     // Signatur einlesen
     println!("\nPlease enter the signature: \n");
     let mut signed = String::new();
@@ -339,7 +331,12 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 // Key in PEM und base64 konvertieren
 fn encode_key(key: Vec<u8>) -> String {
     // KEy in Base64 umwandeln
-    let key_b64 = general_purpose::STANDARD.encode(&key);
+    let mut key_b64 = general_purpose::STANDARD.encode(&key);
+    key_b64 = format!(
+        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+        key_b64.trim()
+    );
+    println!("\n\nPEM-Key:\n\n{}", key_b64);
     return key_b64;
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
