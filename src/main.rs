@@ -1,26 +1,13 @@
-use base64::{
-    engine::{self, general_purpose},
-    Engine,
-};
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use base64::{engine::general_purpose, Engine};
 use hex;
 use md5::{Digest, Md5};
-use openssl::sign::{Signer as RSASigner, Verifier as RSAVerifier};
-use openssl::{
-    hash::MessageDigest,
-    pkey::{PKey, Public},
-    rsa::Rsa,
-};
-use pem::{encode, Pem};
-use rand::prelude;
+use openssl::sign::Verifier as RSAVerifier;
+use openssl::{hash::MessageDigest, pkey::PKey};
 use ring::signature;
-use rsa::{sha2, RsaPrivateKey};
+use rsa::sha2;
 use sha2::Sha256;
-use sodiumoxide::crypto::box_;
-use sodiumoxide::crypto::sign::ed25519;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
-    certificate::yubikey_signer,
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
