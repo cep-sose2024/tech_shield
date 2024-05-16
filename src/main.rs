@@ -49,7 +49,6 @@ fn menu() {
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
                 rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
 
-                println!("\nBase64-Key:\n\n{}", rsa_pub_key);
                 rsa_pub_key = format!(
                     "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
                     rsa_pub_key.trim()
@@ -266,7 +265,6 @@ fn sign(device: &mut YubiKey) {
 }
 
 fn encrypt_rsa(rsa_string: String) -> String {
-    println!("RSA String:\n{}", rsa_string);
     println!("\nPlease enter the data to encrypt: \n");
     let mut data = String::new();
     let _ = std::io::stdin().read_line(&mut data);
