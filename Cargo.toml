@@ -9,7 +9,6 @@ edition = "2021"
 yubikey = { version = "0.8.0", features = ["untested"] }
 x509-cert = "0.2.5"
 base64 = "0.22.1"
-hex = "0.4.3"
 rsa = "0.9.6"
 sha = "1.0.3"
 ring = "0.17.8"

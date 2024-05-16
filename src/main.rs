@@ -1,6 +1,10 @@
 use base64::{engine::general_purpose, Engine};
-use openssl::rsa::{Padding, Rsa};
-use pad::PadStr;
+use md5::{Digest, Md5};
+use openssl::sign::Verifier as RSAVerifier;
+use openssl::{hash::MessageDigest, pkey::PKey};
+use ring::signature;
+use rsa::sha2;
+use sha2::Sha256;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
