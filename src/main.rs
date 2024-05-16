@@ -19,6 +19,8 @@ fn menu() {
     let mut yubikey = verify_pin(pin, yubikey);
 
     let _ = yubikey.authenticate(MgmKey::default());
+    let mut rsa_pub_key = String::new();
+    let mut encrypted = String::new();
 
     loop {
         println!("\n----------------------");
