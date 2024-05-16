@@ -3,16 +3,18 @@ use base64::{
     Engine,
 };
 use hex;
+use md5::{Digest, Md5};
 use rand::prelude;
 use ring::signature;
 use rsa::{sha2, RsaPrivateKey};
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     certificate::yubikey_signer,
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
+
 fn main() {
     menu();
 }
@@ -149,7 +151,7 @@ fn verify_signature() {
     //let raw_u8: &[u8] = raw.trim().as_bytes();
     // muss gehasht werden???
     let raw_vec = raw.trim().as_bytes().to_vec();
-    let raw_hashed = hash_data(raw_vec);
+    let raw_hashed = hash_data(raw_vec, "MD5");
     let raw_u8: &[u8] = &raw_hashed;
 
     let pubkey = signature::UnparsedPublicKey::new(&signature::RSA_PKCS1_2048_8192_SHA256, key_u8);
@@ -187,11 +189,23 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
     }
 }
 */
-fn hash_data(data: Vec<u8>) -> Vec<u8> {
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    let data = hasher.finalize();
-    data.to_vec()
+fn hash_data(data: Vec<u8>, hash_algo: &str) -> Vec<u8> {
+    if hash_algo == "SHA256" {
+        let mut hasher = Sha256::new();
+        hasher.update(data);
+        let data = hasher.finalize();
+        data.to_vec()
+    } else if hash_algo == "MD5" {
+        let mut hasher = Md5::new();
+        hasher.update(data);
+        let hashed = hasher.finalize();
+        println!("{:?}", hashed);
+        println!("{}", general_purpose::STANDARD.encode(&hashed));
+        hashed.to_vec()
+    } else {
+        println!("Hash algorithm not supported.");
+        Vec::new()
+    }
 }
 
 fn sign(device: &mut YubiKey) {
@@ -204,7 +218,7 @@ fn sign(device: &mut YubiKey) {
     let data_vec = data.trim().as_bytes().to_vec();
 
     // Input wird gehasht
-    let hashed = hash_data(data_vec);
+    let hashed = hash_data(data_vec, "SHA256");
     let hashed_u8: &[u8] = &hashed;
 
     // Padding wird zum Hash hinzugefügt
@@ -213,10 +227,10 @@ fn sign(device: &mut YubiKey) {
     let padded_u8: &[u8] = &padded_data;
 
     // new key for signing in Signature-Slot
-    let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
-    let formatted_key = format_key(generated_key);
-    encode_key(formatted_key);
-
+    /*  let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
+       let formatted_key = format_key(generated_key);
+       encode_key(formatted_key);
+    */
     //TODO richtige Pineingabe einfügen
     let _ = device.verify_pin("123456".as_ref());
     let _ = device.authenticate(MgmKey::default());
