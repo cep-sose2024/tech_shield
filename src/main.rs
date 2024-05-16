@@ -123,6 +123,22 @@ fn decr_data_rsa(device: &mut YubiKey, enc: String) {
         piv::SlotId::KeyManagement,
     );
     
+    ///Entfernt PKCS1-Padding von einem Byte-Array
+fn remove_pkcs1_padding(buffer: &[u8]) -> Result<Vec<u8>, &'static str> {
+    let mut pos = 2; // Start nach dem ersten Padding-Byte `0x02`
+    if buffer[0] != 0 {
+        return Err("Invalid padding");
+    }
+    // Überspringe alle non-zero Bytes
+    while pos < buffer.len() && buffer[pos] != 0 {
+        pos += 1;
+    }
+    if pos >= buffer.len() {
+        return Err("No data after padding");
+    }
+    // Das erste `0x00` Byte überspringen, um die tatsächlichen Daten zu erhalten
+    Ok(buffer[pos + 1..].to_vec())
+}
     
     match decrypted {
         Ok(buffer) => {
