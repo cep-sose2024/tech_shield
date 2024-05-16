@@ -91,7 +91,7 @@ fn encrypt_rsa() {
     rsa.public_encrypt(data, &mut encrypted_data, Padding::PKCS1)
         .expect("failed to encrypt data");
     let encrypted_data_base64 = general_purpose::STANDARD.encode(encrypted_data);
-    println!("/n/n{:?}", encrypted_data_base64);
+    println!("/n/nEncrypted Data: {:?}", encrypted_data_base64);
 
 } 
 
