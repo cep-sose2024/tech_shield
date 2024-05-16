@@ -184,7 +184,7 @@ fn rsa_verify_signature(/*signature: &[u8], pkey: &PKey<Public>*/) -> bool {
         .unwrap();
     // Umwandlung in u8 -> PKey
     let key_u8: &[u8] = key_decoded.as_slice();
-    let key_inst = openssl::rsa::Rsa::public_key_from_pem(key_u8).unwrap();
+    let key_inst = openssl::rsa::Rsa::public_key_from_der(key_u8).unwrap();
     let key_pkey = PKey::from_rsa(key_inst).unwrap();
 
     // Signatur einlesen
