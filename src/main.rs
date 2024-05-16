@@ -110,11 +110,9 @@ fn sign(device: &mut YubiKey) {
     }
 }
 
-fn decr_data(device: &mut YubiKey) {
-    println!("\nPlease enter the encrypted data: \n");
-    let mut encrypted = String::new();
-    let _ = std::io::stdin().read_line(&mut encrypted);
-    let encrypted_bytes = encrypted.trim_end().as_bytes();
+fn decr_data_rsa(device: &mut YubiKey, enc: String) {
+
+    let encrypted_bytes = enc.as_bytes();
     let encrypted_bytes_decoded = general_purpose::STANDARD.decode(encrypted_bytes).unwrap();
     let input: &[u8] = &encrypted_bytes_decoded;
     //    println!("{:?}", encrypted_bytes);
@@ -124,13 +122,21 @@ fn decr_data(device: &mut YubiKey) {
         piv::AlgorithmId::Rsa2048,
         piv::SlotId::KeyManagement,
     );
+    
+    
     match decrypted {
         Ok(buffer) => {
-            let string = String::from_utf8_lossy(&buffer);
-            println!("\nDecrypted (lossy): \n{}", string);
+            match remove_pkcs1_padding(&buffer) {
+                Ok(data) => {
+                    let string = String::from_utf8_lossy(&data);
+                    println!("\nDecrypted (lossy): \n{}", string);
+                },
+                Err(err) => println!("Padding error: {}", err),
+            }
         }
         Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
     }
+    
 }
 
 // Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
