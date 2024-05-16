@@ -156,11 +156,13 @@ fn remove_pkcs1_padding(buffer: &[u8]) -> Result<Vec<u8>, &'static str> {
 }
 
 // Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
+// Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
 fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Vec<u8> {
     if let Ok(key_info) = generated_key {
-        //     certify(&mut device, generated_key);
         let value = key_info.subject_public_key;
         let bytes = BitString::as_bytes(&value).unwrap();
+        let b_65 = general_purpose::STANDARD.encode(bytes); // Convert BitString to bytes before encoding
+        println!("Key: {:?}", b_65);
         return bytes.to_vec();
     }
     println!("Fehler beim Zugriff auf den öffentlichen Schlüssel.");
@@ -168,11 +170,12 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 }
 
 // Key in PEM und base64 konvertieren
-fn encode_key(key: Vec<u8>) {
+fn encode_key(key: Vec<u8>)  -> String {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
-
-    println!("\nPublic Key: \n\n{}", key_b64);
+    let key_b64_new = format!("-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}\n-----END PUBLIC KEY-----", key_b64);
+    println!("\nPublic Key: \n\n{}", key_b64_new);
+    key_b64_new
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
         println!("\nPEM-Key:{:?}", pem_key);
@@ -187,7 +190,6 @@ fn encode_key(key: Vec<u8>) {
         return keys;
     */
 }
-
 fn open_device() -> YubiKey {
     loop {
         println!("Please connect your Yubikey and press Enter.");
