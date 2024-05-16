@@ -30,7 +30,8 @@ fn menu() {
         println!("3. Show Metadata");
         println!("4. List Keys");
         println!("5. Sign Data");
-        println!("6. End");
+        println!("6. Encrypt");
+        println!("7. End");
         println!("----------------------\n");
         let mut input = String::new();
         let _ = std::io::stdin().read_line(&mut input);
@@ -39,8 +40,9 @@ fn menu() {
             "1" => {
                 let cipher = AlgorithmId::Rsa2048;
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
-                let public_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
-                
+                println!("{:?}", generated_key);
+                let formatted_key = format_key(generated_key);
+                rsa_pub_key = encode_key(formatted_key);
             }
             "2" => {
                 decr_data_rsa(&mut yubikey, encrypted.clone());
@@ -59,6 +61,9 @@ fn menu() {
                 sign(&mut yubikey);
             }
             "6" => {
+                encrypted = encrypt_rsa(rsa_pub_key.clone());
+            }
+            "7" => {
                 break;
             }
             _ => {
