@@ -1,10 +1,10 @@
 use base64::{engine::general_purpose, Engine};
+use der::Encode;
 use md5::{Digest, Md5};
 use openssl::rsa::{Padding, Rsa};
 use openssl::sign::Verifier as RSAVerifier;
 use openssl::{hash::MessageDigest, pkey::PKey};
 use ring::signature;
-use der::Encode;
 use rsa::sha2;
 use sha2::Sha256;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
@@ -32,12 +32,13 @@ fn menu() {
     loop {
         println!("\n----------------------");
         println!("1. Generate Key");
-        println!("2. Decrypt");
-        println!("3. Show Metadata");
-        println!("4. List Keys");
-        println!("5. Sign Data");
-        println!("6. Encrypt");
-        println!("7. End");
+        println!("2. Encrypt");
+        println!("3. Decrypt");
+        println!("4. Sign Data");
+        println!("5. Verify Signature");
+        println!("6. Show Metadata");
+        println!("7. List Keys");
+        println!("8. End");
         println!("----------------------\n");
         let mut input = String::new();
         let _ = std::io::stdin().read_line(&mut input);
@@ -46,34 +47,45 @@ fn menu() {
             "1" => {
                 let cipher = AlgorithmId::Rsa2048;
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
-                println!("public key: {:?}",encode_key(generated_key.as_ref().unwrap().to_der().unwrap()));
+                rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
 
+                println!("\nBase64-Key:\n\n{}", rsa_pub_key);
+                let key_b64_new = format!(
+                    "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+                    rsa_pub_key
+                );
+                println!("PEM-Key:\n\n{}", key_b64_new);
             }
             "2" => {
-                decr_data_rsa(&mut yubikey, encrypted.clone());
+                encrypted = encrypt_rsa(rsa_pub_key.clone());
             }
             "3" => {
+                decr_data_rsa(&mut yubikey, encrypted.clone());
+            }
+            "4" => {
+                sign(&mut yubikey);
+            }
+            "5" => {
+                if rsa_verify_signature() {
+                    println!("Signature is valid.");
+                } else {
+                    println!("Signature is invalid.");
+                }
+            }
+            "6" => {
                 println!(
                     "{:?}",
                     yubikey::piv::metadata(&mut yubikey, piv::SlotId::KeyManagement)
                 )
             }
-            "4" => {
+            "7" => {
                 let list = Key::list(&mut yubikey);
                 println!("{:?}", list);
             }
-            "5" => {
-                sign(&mut yubikey);
-            }
-            "6" => {
-                encrypted = encrypt_rsa(rsa_pub_key.clone());
-            }
-            "7" => {
+            "8" => {
                 break;
             }
-            "8" => {
-                rsa_verify_signature();
-            }
+
             _ => {
                 println!("\nUnknown Input!\n");
             }
@@ -260,7 +272,7 @@ fn encrypt_rsa(rsa_string: String) -> String {
     let data = data.trim();
     let data = data.as_bytes();
 
-    let rsa = Rsa::public_key_from_pem(rsa_string.as_bytes())
+    let rsa = Rsa::public_key_from_der(rsa_string.as_bytes())
         .expect("failed to create RSA from public key PEM");
 
     let mut encrypted_data = vec![0; rsa.size() as usize];
@@ -312,7 +324,6 @@ fn decr_data_rsa(device: &mut YubiKey, enc: String) {
     }
 }
 
-// Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
 // Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
 fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Vec<u8> {
     if let Ok(key_info) = generated_key {

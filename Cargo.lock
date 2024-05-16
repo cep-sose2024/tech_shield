@@ -772,6 +772,7 @@ name = "tech_shield"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "der",
  "md-5",
  "openssl",
  "ring",
