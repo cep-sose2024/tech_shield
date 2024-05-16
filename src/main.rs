@@ -50,11 +50,11 @@ fn menu() {
                 rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
 
                 println!("\nBase64-Key:\n\n{}", rsa_pub_key);
-                let key_b64_new = format!(
+                rsa_pub_key = format!(
                     "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-                    rsa_pub_key
+                    rsa_pub_key.trim()
                 );
-                println!("\n\nPEM-Key:\n\n{}", key_b64_new);
+                println!("\n\nPEM-Key:\n\n{}", rsa_pub_key);
             }
             "2" => {
                 encrypted = encrypt_rsa(rsa_pub_key.clone());
@@ -266,13 +266,14 @@ fn sign(device: &mut YubiKey) {
 }
 
 fn encrypt_rsa(rsa_string: String) -> String {
+    println!("RSA String:\n{}", rsa_string);
     println!("\nPlease enter the data to encrypt: \n");
     let mut data = String::new();
     let _ = std::io::stdin().read_line(&mut data);
     let data = data.trim();
     let data = data.as_bytes();
 
-    let rsa = Rsa::public_key_from_der(rsa_string.as_bytes())
+    let rsa = Rsa::public_key_from_pem(rsa_string.as_bytes())
         .expect("failed to create RSA from public key PEM");
 
     let mut encrypted_data = vec![0; rsa.size() as usize];
