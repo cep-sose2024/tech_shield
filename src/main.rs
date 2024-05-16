@@ -20,6 +20,8 @@ fn menu() {
     let mut yubikey = verify_pin(pin, yubikey);
 
     let _ = yubikey.authenticate(MgmKey::default());
+    let mut rsa_pub_key = String::new();
+    let mut encrypted = String::new();
 
     loop {
         println!("\n----------------------");
@@ -40,10 +42,10 @@ fn menu() {
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
                 println!("{:?}", generated_key);
                 let formatted_key = format_key(generated_key);
-                encode_key(formatted_key);
+                rsa_pub_key = encode_key(formatted_key);
             }
             "2" => {
-                decr_data_rsa(&mut yubikey);
+                decr_data_rsa(&mut yubikey, encrypted.clone());
             }
             "3" => {
                 println!(
@@ -59,7 +61,7 @@ fn menu() {
                 sign(&mut yubikey);
             }
             "6" => {
-                encrypt_rsa();
+                encrypted = encrypt_rsa(rsa_pub_key.clone());
             }
             "7" => {
                 break;
@@ -72,26 +74,21 @@ fn menu() {
 }
 
 
-fn encrypt_rsa() {
+fn encrypt_rsa(rsa_string: String) -> String{
     println!("\nPlease enter the data to encrypt: \n");
     let mut data = String::new();
     let _ = std::io::stdin().read_line(&mut data);
     let data = data.trim();
     let data = data.as_bytes();
 
-    println!("\nPlease enter the public key for encryption: \n");
-    let mut rsa = String::new();
-    let _ = std::io::stdin().read_line(&mut rsa);
-    let public_key = rsa.trim();
-    let public_key_pem = format!("-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----", public_key);
-
-    let rsa = Rsa::public_key_from_pem(public_key_pem.as_bytes()).expect("failed to create RSA from public key PEM");
+    let rsa = Rsa::public_key_from_pem(rsa_string.as_bytes()).expect("failed to create RSA from public key PEM");
     
     let mut encrypted_data = vec![0; rsa.size() as usize];
     rsa.public_encrypt(data, &mut encrypted_data, Padding::PKCS1)
         .expect("failed to encrypt data");
     let encrypted_data_base64 = general_purpose::STANDARD.encode(encrypted_data);
-    println!("/n/nEncrypted Data: {:?}", encrypted_data_base64);
+    println!("\n\nEncrypted Data: {:?}", encrypted_data_base64);
+    encrypted_data_base64
 
 } 
 
@@ -122,11 +119,9 @@ fn sign(device: &mut YubiKey) {
     }
 }
 
-fn decr_data_rsa(device: &mut YubiKey) {
-    println!("\nPlease enter the encrypted data: \n");
-    let mut encrypted = String::new();
-    let _ = std::io::stdin().read_line(&mut encrypted);
-    let encrypted_bytes = encrypted.trim_end().as_bytes();
+fn decr_data_rsa(device: &mut YubiKey, enc: String) {
+
+    let encrypted_bytes = enc.as_bytes();
     let encrypted_bytes_decoded = general_purpose::STANDARD.decode(encrypted_bytes).unwrap();
     let input: &[u8] = &encrypted_bytes_decoded;
     //    println!("{:?}", encrypted_bytes);
@@ -184,11 +179,12 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 }
 
 // Key in PEM und base64 konvertieren
-fn encode_key(key: Vec<u8>) {
+fn encode_key(key: Vec<u8>)  -> String {
     // KEy in Base64 umwandeln
     let key_b64 = general_purpose::STANDARD.encode(&key);
-    let key_b64_new = format!("-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}-----END PUBLIC KEY-----", key_b64);
+    let key_b64_new = format!("-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}\n-----END PUBLIC KEY-----", key_b64);
     println!("\nPublic Key: \n\n{}", key_b64_new);
+    key_b64_new
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
         println!("\nPEM-Key:{:?}", pem_key);
