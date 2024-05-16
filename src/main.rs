@@ -1,5 +1,6 @@
 use base64::{engine::general_purpose, Engine};
 use md5::{Digest, Md5};
+use openssl::rsa::{Padding, Rsa};
 use openssl::sign::Verifier as RSAVerifier;
 use openssl::{hash::MessageDigest, pkey::PKey};
 use ring::signature;
@@ -69,6 +70,9 @@ fn menu() {
             }
             "7" => {
                 break;
+            }
+            "8" => {
+                rsa_verify_signature();
             }
             _ => {
                 println!("\nUnknown Input!\n");
@@ -265,33 +269,6 @@ fn encrypt_rsa(rsa_string: String) -> String {
     let encrypted_data_base64 = general_purpose::STANDARD.encode(encrypted_data);
     println!("\n\nEncrypted Data: {:?}", encrypted_data_base64);
     encrypted_data_base64
-}
-
-fn sign(device: &mut YubiKey) {
-    println!("\nPlease enter the data to sign: \n");
-    let data = String::new();
-    let _ = std::io::stdin().read_line(&mut data.pad_to_width(245));
-    let data = data.trim();
-    let data = data.as_bytes();
-
-    // new key for signing in Signature-Slot
-    let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
-    let formatted_key = format_key(generated_key);
-    encode_key(formatted_key);
-
-    let signature = piv::sign_data(
-        device,
-        data,
-        piv::AlgorithmId::Rsa2048,
-        piv::SlotId::Signature,
-    );
-    match signature {
-        Ok(buffer) => {
-            let string = String::from_utf8_lossy(&buffer);
-            println!("\nSignature (lossy): \n{}", string);
-        }
-        Err(err) => println!("\nFailed to sign: \n{:?}", err),
-    }
 }
 
 fn decr_data_rsa(device: &mut YubiKey, enc: String) {
