@@ -148,30 +148,54 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
     }
 }
 */
-fn rsa_verify_signature(/*signature: &[u8], pkey: &PKey<Public>*/) -> bool {
+fn rsa_verify_signature(/*signature: &[u8], pkey: &PKey<Public> rsa_string: String*/) -> bool {
     // Public Key einlesen
-    println!("\nPlease enter the public key: \n");
-    let mut key = String::new();
-    let _ = std::io::stdin().read_line(&mut key);
-    let key_test = general_purpose::STANDARD.decode(key.trim()).unwrap();
-    // Umwandlung in u8 -> PKey
-    let key_u8: &[u8] = key_test.as_slice();
-    let key_inst = openssl::rsa::Rsa::public_key_from_pem(key_u8).unwrap();
-    let key_pkey = PKey::from_rsa(key_inst).unwrap();
+    /*    println!("\nPlease enter the public Key: \n");
+       let mut data = String::new();
+       let _ = std::io::stdin().read_line(&mut data);
+       let data = data.trim();
+       let data = data.as_bytes();
+    */
+    // println!("{}", rsa_string);
+    let rsa = "-----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAj6ONjVG9iQcViYth4DHnsLqa4ZMtu1wNIwn8QTmdLpbZeaiZbPoRGNPr6mobuNn4lLxMHq/wgOqneNNQmi6FMVv9TlqyaE0lEcAGiOjrLBNmnPxe5CZyWUssh1LeHQzAqLicaSqmqIY6Ig7QTm9YRd+y0jnkopPzk90wPyKdrd55jtgHMXEEImt1oSg29WxzrKHvcbH/dVxZkmJuDcLQx3g2zzkGZnuhiwOfX/1mQCM+UDYNZyrUegSDS3ITW0S+abukrEi9OKe3+iW3MP0BX6tITAW1IQ0I5cArvd93vzMc7WOz3qrajuqCVcaHad5AU9WwDsY79Vk89skmqydrUQIDAQAB
+-----END PUBLIC KEY-----";
+    let rsa =
+        Rsa::public_key_from_pem(rsa.as_bytes()).expect("failed to create RSA from public key PEM");
+    let key_pkey = PKey::from_rsa(rsa).unwrap();
     // Signatur einlesen
-    println!("\nPlease enter the signature: \n");
-    let mut signed = String::new();
-    let _ = std::io::stdin().read_line(&mut signed);
-    let signed_decoded = general_purpose::STANDARD
-        .decode(signed.trim().as_bytes())
-        .unwrap();
-    let signed_u8: &[u8] = signed_decoded.as_slice();
-
+    /*     println!("\nPlease enter the signature: \n");
+        let mut signed = String::new();
+        let _ = std::io::stdin().read_line(&mut signed);
+        let signed_decoded = general_purpose::STANDARD
+            .decode(signed.trim())
+            .unwrap();
+        let signed_u8: &[u8] = signed_decoded.as_slice();
+    */
+    let signature: [u8; 256] = [
+        93, 158, 218, 5, 89, 196, 44, 112, 225, 56, 227, 238, 194, 18, 55, 88, 129, 248, 121, 19,
+        194, 65, 168, 5, 223, 63, 70, 39, 157, 65, 190, 201, 119, 194, 109, 79, 43, 126, 25, 233,
+        113, 145, 34, 186, 166, 199, 12, 222, 176, 170, 70, 193, 171, 46, 149, 214, 167, 162, 56,
+        23, 227, 157, 225, 125, 201, 27, 127, 142, 192, 234, 146, 203, 169, 139, 235, 125, 190,
+        174, 235, 27, 116, 172, 223, 185, 29, 61, 162, 60, 189, 114, 253, 91, 141, 46, 201, 204,
+        28, 230, 144, 226, 189, 215, 226, 2, 113, 114, 180, 68, 87, 118, 72, 164, 77, 178, 116,
+        248, 72, 234, 22, 20, 45, 158, 61, 223, 208, 8, 30, 43, 203, 34, 212, 184, 183, 133, 235,
+        73, 119, 9, 92, 156, 166, 239, 160, 249, 89, 37, 130, 62, 125, 240, 59, 234, 245, 219, 11,
+        230, 117, 223, 39, 126, 204, 81, 94, 173, 54, 78, 13, 67, 63, 220, 113, 194, 222, 162, 28,
+        255, 2, 185, 193, 73, 243, 65, 149, 140, 109, 63, 132, 183, 43, 138, 40, 253, 30, 40, 101,
+        222, 16, 199, 216, 59, 228, 188, 175, 85, 32, 97, 214, 73, 238, 99, 94, 109, 207, 254, 198,
+        104, 100, 76, 108, 166, 154, 6, 64, 68, 52, 250, 251, 57, 84, 71, 139, 60, 29, 86, 197,
+        162, 50, 145, 68, 173, 175, 185, 116, 223, 156, 255, 97, 85, 74, 135, 59, 123, 4, 122, 238,
+        156,
+    ];
+    let signature_u8: &[u8] = &signature;
     // Unsignierte Daten einlesen
-    println!("\nPlease enter the raw data: \n");
+    /*     println!("\nPlease enter the raw data: \n");
     let mut raw = String::new();
     let _ = std::io::stdin().read_line(&mut raw);
-    let encrypted_bytes = raw.trim_end().as_bytes();
+    */
+    let raw = "Hello, World";
+    let encrypted_bytes = raw.trim().as_bytes();
 
     // Signatur verifizieren
     let mut verifier =
@@ -180,7 +204,7 @@ fn rsa_verify_signature(/*signature: &[u8], pkey: &PKey<Public>*/) -> bool {
         .update(encrypted_bytes)
         .expect("failed to update verifier");
     verifier
-        .verify(signed_u8)
+        .verify(signature_u8)
         .expect("failed to verify signature")
 }
 
