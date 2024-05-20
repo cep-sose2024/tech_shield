@@ -1,4 +1,4 @@
-use super::TpmProvider;
+use super::YubiKeyProvider;
 use crate::{
     common::{error::SecurityModuleError, traits::key_handle::KeyHandle},
     yubikey::core::error::YubiKeyError,
@@ -8,7 +8,7 @@ use tracing::instrument;
 
 /// Provides cryptographic operations for asymmetric keys on a YubiKey,
 /// such as signing, encryption, decryption, and signature verification.
-impl KeyHandle for TpmProvider {
+impl KeyHandle for YubiKeyProvider {
     /// Signs data using the cryptographic key on a YubiKey.
     ///
     /// This method hashes the input data using SHA-256 and then signs the hash.
