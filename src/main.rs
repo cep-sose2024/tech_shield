@@ -1,14 +1,15 @@
 use base64::{engine::general_purpose, Engine};
-use der::Encode;
 use md5::{Digest, Md5};
-use openssl::pkey;
+use openssl::pkey::Public;
 use openssl::rsa::{Padding, Rsa};
 use openssl::sign::Verifier;
 use openssl::{hash::MessageDigest, pkey::PKey};
+use openssl::{pkey, sign};
 use ring::signature;
 use rsa::sha2;
 //use rsa::signature::Verifier;
 use sha2::Sha256;
+use x509_cert::der::{self, Encode};
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
@@ -62,7 +63,7 @@ fn menu() {
                 sign(&mut yubikey);
             }
             "5" => {
-                if rsa_verify_signature() {
+                if input_verify_signature() {
                     println!("Signature is valid.");
                 } else {
                     println!("Signature is invalid.");
@@ -150,63 +151,84 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
     }
 }
 */
-fn rsa_verify_signature(/*signature: &[u8], pkey: &PKey<Public> rsa_string: String*/) -> bool {
-    // Public Key einlesen
-    /*    println!("\nPlease enter the public Key: \n");
-       let mut data = String::new();
-       let _ = std::io::stdin().read_line(&mut data);
-       let data = data.trim();
-       let data = data.as_bytes();
-    */
-    // println!("{}", rsa_string);
-    let rsa = "-----BEGIN PUBLIC KEY-----
-    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAj6ONjVG9iQcViYth4DHnsLqa4ZMtu1wNIwn8QTmdLpbZeaiZbPoRGNPr6mobuNn4lLxMHq/wgOqneNNQmi6FMVv9TlqyaE0lEcAGiOjrLBNmnPxe5CZyWUssh1LeHQzAqLicaSqmqIY6Ig7QTm9YRd+y0jnkopPzk90wPyKdrd55jtgHMXEEImt1oSg29WxzrKHvcbH/dVxZkmJuDcLQx3g2zzkGZnuhiwOfX/1mQCM+UDYNZyrUegSDS3ITW0S+abukrEi9OKe3+iW3MP0BX6tITAW1IQ0I5cArvd93vzMc7WOz3qrajuqCVcaHad5AU9WwDsY79Vk89skmqydrUQIDAQAB
------END PUBLIC KEY-----";
-    let rsa =
-        Rsa::public_key_from_pem(rsa.as_bytes()).expect("failed to create RSA from public key PEM");
-    let key_pkey = PKey::from_rsa(rsa).unwrap();
-    // Signatur einlesen
-    /*     println!("\nPlease enter the signature: \n");
+
+fn input_verify_signature() -> bool {
+    /*
+        // Public Key einlesen
+        println!("\nPlease enter the public Key: \n");
+        let mut data = String::new();
+        let _ = std::io::stdin().read_line(&mut data);
+        let rsa = Rsa::public_key_from_pem(data.trim().as_bytes())
+            .expect("failed to create RSA from public key PEM");
+        let key_pkey = PKey::from_rsa(rsa).unwrap();
+
+        // Signatur einlesen
+        println!("\nPlease enter the signature: \n");
         let mut signed = String::new();
         let _ = std::io::stdin().read_line(&mut signed);
-        let signed_decoded = general_purpose::STANDARD
-            .decode(signed.trim())
-            .unwrap();
-        let signed_u8: &[u8] = signed_decoded.as_slice();
-    */
-    let signature: [u8; 256] = [
-        93, 158, 218, 5, 89, 196, 44, 112, 225, 56, 227, 238, 194, 18, 55, 88, 129, 248, 121, 19,
-        194, 65, 168, 5, 223, 63, 70, 39, 157, 65, 190, 201, 119, 194, 109, 79, 43, 126, 25, 233,
-        113, 145, 34, 186, 166, 199, 12, 222, 176, 170, 70, 193, 171, 46, 149, 214, 167, 162, 56,
-        23, 227, 157, 225, 125, 201, 27, 127, 142, 192, 234, 146, 203, 169, 139, 235, 125, 190,
-        174, 235, 27, 116, 172, 223, 185, 29, 61, 162, 60, 189, 114, 253, 91, 141, 46, 201, 204,
-        28, 230, 144, 226, 189, 215, 226, 2, 113, 114, 180, 68, 87, 118, 72, 164, 77, 178, 116,
-        248, 72, 234, 22, 20, 45, 158, 61, 223, 208, 8, 30, 43, 203, 34, 212, 184, 183, 133, 235,
-        73, 119, 9, 92, 156, 166, 239, 160, 249, 89, 37, 130, 62, 125, 240, 59, 234, 245, 219, 11,
-        230, 117, 223, 39, 126, 204, 81, 94, 173, 54, 78, 13, 67, 63, 220, 113, 194, 222, 162, 28,
-        255, 2, 185, 193, 73, 243, 65, 149, 140, 109, 63, 132, 183, 43, 138, 40, 253, 30, 40, 101,
-        222, 16, 199, 216, 59, 228, 188, 175, 85, 32, 97, 214, 73, 238, 99, 94, 109, 207, 254, 198,
-        104, 100, 76, 108, 166, 154, 6, 64, 68, 52, 250, 251, 57, 84, 71, 139, 60, 29, 86, 197,
-        162, 50, 145, 68, 173, 175, 185, 116, 223, 156, 255, 97, 85, 74, 135, 59, 123, 4, 122, 238,
-        156,
-    ];
-    let signature_u8: &[u8] = &signature;
-    // Unsignierte Daten einlesen
-    /*     println!("\nPlease enter the raw data: \n");
-    let mut raw = String::new();
-    let _ = std::io::stdin().read_line(&mut raw);
-    */
-    let raw = "Hello, World";
-    let encrypted_bytes = raw.trim().as_bytes();
+        let signed_u8 = signed.trim().as_bytes();
 
-    // Signatur verifizieren
+        // Unsignierte Daten einlesen
+        println!("\nPlease enter the raw data: \n");
+        let mut raw = String::new();
+        let _ = std::io::stdin().read_line(&mut raw);
+        let raw = raw.as_bytes();
+
+        let verify = rsa_verify_signature(signed_u8, &key_pkey, raw);
+        verify
+    */
+    ///////////////////////////////////////////////
+    ////////////// Hardcoded //////////////////////
+    ///////////////////////////////////////////////
+
+    // Public Key
+    let rsa = "-----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3VvTO6StTw/D+MCsYmT/63eBOVacJ3XMpG1d0T2GkjOoP2N0RRsx/JvcdIDQxoxIBZ7jvD+CDBfALAOMlcf6DFVaH8975Lqz/yADwk+XZBSZ1h+sfEif79VR5tfjmhuAP0Kkww99Emy43zBtm6z61fwzhUIkukMUb78yGlFmV0kYWKa41cn1dROadxKc2Hjz6Vv+3IQ+fiOZXkEVqOhaFckE7SRqZmMxCWndv0G3OHcScXNsY01yavm2plkTmmJhKLBEjzThaoVKJAmnfX6VlQ39GRcWQ+bz4U3C6GEV2/AgiUJum40acr3HJGZUniIjY2NGxy+fe+emMEZuTMRtHwIDAQAB
+-----END PUBLIC KEY-----
+    ";
+    let rsa = Rsa::public_key_from_pem(rsa.trim().as_bytes())
+        .expect("failed to create RSA from public key PEM");
+    let key_pkey = PKey::from_rsa(rsa).unwrap();
+
+    // Signatur als Bytes
+    /*   let signature = [
+            93, 158, 218, 5, 89, 196, 44, 112, 225, 56, 227, 238, 194, 18, 55, 88, 129, 248, 121, 19,
+            194, 65, 168, 5, 223, 63, 70, 39, 157, 65, 190, 201, 119, 194, 109, 79, 43, 126, 25, 233,
+            113, 145, 34, 186, 166, 199, 12, 222, 176, 170, 70, 193, 171, 46, 149, 214, 167, 162, 56,
+            23, 227, 157, 225, 125, 201, 27, 127, 142, 192, 234, 146, 203, 169, 139, 235, 125, 190,
+            174, 235, 27, 116, 172, 223, 185, 29, 61, 162, 60, 189, 114, 253, 91, 141, 46, 201, 204,
+            28, 230, 144, 226, 189, 215, 226, 2, 113, 114, 180, 68, 87, 118, 72, 164, 77, 178, 116,
+            248, 72, 234, 22, 20, 45, 158, 61, 223, 208, 8, 30, 43, 203, 34, 212, 184, 183, 133, 235,
+            73, 119, 9, 92, 156, 166, 239, 160, 249, 89, 37, 130, 62, 125, 240, 59, 234, 245, 219, 11,
+            230, 117, 223, 39, 126, 204, 81, 94, 173, 54, 78, 13, 67, 63, 220, 113, 194, 222, 162, 28,
+            255, 2, 185, 193, 73, 243, 65, 149, 140, 109, 63, 132, 183, 43, 138, 40, 253, 30, 40, 101,
+            222, 16, 199, 216, 59, 228, 188, 175, 85, 32, 97, 214, 73, 238, 99, 94, 109, 207, 254, 198,
+            104, 100, 76, 108, 166, 154, 6, 64, 68, 52, 250, 251, 57, 84, 71, 139, 60, 29, 86, 197,
+            162, 50, 145, 68, 173, 175, 185, 116, 223, 156, 255, 97, 85, 74, 135, 59, 123, 4, 122, 238,
+            156,
+        ];
+        let signature_u8: &[u8] = &signature;
+    */
+    // Signatur als Base64
+    let signature = "VuEmpMF9vfkCwaUrU/WX++IoYT1JDf/Bv2I8ALtBo9gOq0tmReWFtk4HDW+gKjjB5domv7DlHlVpSmXRS+OkuwXbw6PC9aua0Znvwq8S44qxbDUrLUB4SuJQWYTax+YYVn3Yxp05oLEOCQvdxN5rJ6d3ds9cUOYuT4xAu1IZsarpwt/Ia4rkjOKO4bFA4GFTuxiLBAr1TWSqW3dzcLQh8ZK3w34mzJeWjqbl9JC1lPjeyCnAvb5mFEk0el9ws1S+TEcLjfTHdZmIsgYXhjF5ZBfJAuY2jM1HRs8ygYUvi82U/WAyS+45hEh+wvgnwmLUIvE/84g5ogRC4pVJWEInvQ==";
+    let signature_u8 = signature.as_bytes();
+
+    // Msg
+    let raw = "test";
+    let encrypted_bytes = raw.as_bytes();
+
+    let verify = rsa_verify_signature(signature_u8, &key_pkey, encrypted_bytes);
+    verify
+}
+
+fn rsa_verify_signature(signature: &[u8], pkey: &PKey<Public>, rsa_string: &[u8]) -> bool {
     let mut verifier =
-        Verifier::new(MessageDigest::sha256(), &key_pkey).expect("failed to create verifier");
+        Verifier::new(MessageDigest::sha256(), &pkey).expect("failed to create verifier");
     verifier
-        .update(encrypted_bytes)
+        .update(rsa_string)
         .expect("failed to update verifier");
     verifier
-        .verify(signature_u8)
+        .verify(signature)
         .expect("failed to verify signature")
 }
 
@@ -250,8 +272,9 @@ fn sign(device: &mut YubiKey) {
 
     // new key for signing in Signature-Slot
     let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
-    let formatted_key = format_key(generated_key);
-    encode_key(formatted_key);
+    //  let formatted_key = format_key(generated_key);
+    let rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
+    println!("\n\nPEM-Key:\n\n{}", rsa_pub_key);
 
     //TODO richtige Pineingabe einfügen
     let _ = device.verify_pin("123456".as_ref());
@@ -267,12 +290,6 @@ fn sign(device: &mut YubiKey) {
 
     match signature {
         Ok(buffer) => {
-            /* let signature_vec = buffer.to_vec();
-            let signature_u8: &[u8] = signature_vec.as_slice();
-            println!("\nSignature: \n{:?}", signature_u8);
-            let unpadded = remove_pkcs1_padding(signature_u8, 32);
-            println!("{:?}", general_purpose::STANDARD.encode(&unpadded));
-            */
             println!(
                 "\nSignature: \n\n{}",
                 general_purpose::STANDARD.encode(&buffer)
