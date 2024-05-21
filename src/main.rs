@@ -1,10 +1,13 @@
 use base64::{engine::general_purpose, Engine};
-use hex;
+use der::Encode;
 use md5::{Digest, Md5};
-use openssl::sign::Verifier as RSAVerifier;
+use openssl::pkey;
+use openssl::rsa::{Padding, Rsa};
+use openssl::sign::Verifier;
 use openssl::{hash::MessageDigest, pkey::PKey};
 use ring::signature;
 use rsa::sha2;
+//use rsa::signature::Verifier;
 use sha2::Sha256;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
@@ -16,6 +19,8 @@ fn main() {
     menu();
 }
 
+//TEST
+
 fn menu() {
     let yubikey = open_device();
 
@@ -23,17 +28,19 @@ fn menu() {
     let mut yubikey = verify_pin(pin, yubikey);
 
     let _ = yubikey.authenticate(MgmKey::default());
+    let mut rsa_pub_key = String::new();
+    let mut encrypted = String::new();
 
     loop {
         println!("\n----------------------");
         println!("1. Generate Key");
-        println!("2. Decrypt");
-        println!("3. Show Metadata");
-        println!("4. List Keys");
-        println!("5. Sign Data");
-        println!("6. End");
-        println!("7. Encrypt");
-        println!("8. Verify Signature");
+        println!("2. Encrypt");
+        println!("3. Decrypt");
+        println!("4. Sign Data");
+        println!("5. Verify Signature");
+        println!("6. Show Metadata");
+        println!("7. List Keys");
+        println!("8. End");
         println!("----------------------\n");
         let mut input = String::new();
         let _ = std::io::stdin().read_line(&mut input);
@@ -42,63 +49,45 @@ fn menu() {
             "1" => {
                 let cipher = AlgorithmId::Rsa2048;
                 let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
-                println!("{:?}", generated_key);
-                let formatted_key = format_key(generated_key);
-                encode_key(formatted_key);
+                rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
+                println!("\n\nPEM-Key:\n\n{}", rsa_pub_key);
             }
             "2" => {
-                decr_data(&mut yubikey);
+                encrypted = encrypt_rsa(rsa_pub_key.clone());
             }
             "3" => {
-                println!(
-                    "{:?}",
-                    yubikey::piv::metadata(&mut yubikey, piv::SlotId::KeyManagement)
-                )
+                decr_data_rsa(&mut yubikey, encrypted.clone());
             }
             "4" => {
-                let list = Key::list(&mut yubikey);
-                println!("{:?}", list);
-            }
-            "5" => {
-                //       generate_keypair_for_signing();
                 sign(&mut yubikey);
             }
-            "6" => {
-                break;
-            }
-            "7" => {
-                // encrypt();
-                //      encrypt();
-            }
-            "8" => {
-                //verify_signature();
+            "5" => {
                 if rsa_verify_signature() {
                     println!("Signature is valid.");
                 } else {
                     println!("Signature is invalid.");
                 }
             }
+            "6" => {
+                println!(
+                    "{:?}",
+                    yubikey::piv::metadata(&mut yubikey, piv::SlotId::KeyManagement)
+                )
+            }
+            "7" => {
+                let list = Key::list(&mut yubikey);
+                println!("{:?}", list);
+            }
+            "8" => {
+                break;
+            }
+
             _ => {
                 println!("\nUnknown Input!\n");
             }
         }
     }
 }
-/*
-fn generate_keypair_for_signing() {
-    let rng = rand::thread_rng();
-    let keypair = RsaPrivateKey::new(&mut rng, 2048).expect("Failed to generate key pair");
-    let private_key = keypair
-        .private_key_to_pem()
-        .expect("Failed to convert private key to PEM");
-    let public_key = keypair
-        .public_key_to_pem()
-        .expect("Failed to convert public key to PEM");
-
-    println!("Private key: {}", private_key);
-    println!("Public key: {}", public_key);
-}
-*/
 
 fn verify_signature() {
     println!("\nPlease enter the public key: \n");
@@ -161,42 +150,63 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
     }
 }
 */
-fn rsa_verify_signature(/*signature: &[u8], pkey: &PKey<Public>*/) -> bool {
+fn rsa_verify_signature(/*signature: &[u8], pkey: &PKey<Public> rsa_string: String*/) -> bool {
     // Public Key einlesen
-    println!("\nPlease enter the public key: \n");
-    let mut key = String::new();
-    let _ = std::io::stdin().read_line(&mut key);
-    let key_decoded = general_purpose::STANDARD
-        .decode(key.trim().as_bytes())
-        .unwrap();
-    // Umwandlung in u8 -> PKey
-    let key_u8: &[u8] = key_decoded.as_slice();
-    let key_inst = openssl::rsa::Rsa::public_key_from_der(key_u8).unwrap();
-    let key_pkey = PKey::from_rsa(key_inst).unwrap();
-
+    /*    println!("\nPlease enter the public Key: \n");
+       let mut data = String::new();
+       let _ = std::io::stdin().read_line(&mut data);
+       let data = data.trim();
+       let data = data.as_bytes();
+    */
+    // println!("{}", rsa_string);
+    let rsa = "-----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAj6ONjVG9iQcViYth4DHnsLqa4ZMtu1wNIwn8QTmdLpbZeaiZbPoRGNPr6mobuNn4lLxMHq/wgOqneNNQmi6FMVv9TlqyaE0lEcAGiOjrLBNmnPxe5CZyWUssh1LeHQzAqLicaSqmqIY6Ig7QTm9YRd+y0jnkopPzk90wPyKdrd55jtgHMXEEImt1oSg29WxzrKHvcbH/dVxZkmJuDcLQx3g2zzkGZnuhiwOfX/1mQCM+UDYNZyrUegSDS3ITW0S+abukrEi9OKe3+iW3MP0BX6tITAW1IQ0I5cArvd93vzMc7WOz3qrajuqCVcaHad5AU9WwDsY79Vk89skmqydrUQIDAQAB
+-----END PUBLIC KEY-----";
+    let rsa =
+        Rsa::public_key_from_pem(rsa.as_bytes()).expect("failed to create RSA from public key PEM");
+    let key_pkey = PKey::from_rsa(rsa).unwrap();
     // Signatur einlesen
-    println!("\nPlease enter the signature: \n");
-    let mut signed = String::new();
-    let _ = std::io::stdin().read_line(&mut signed);
-    let signed_decoded = general_purpose::STANDARD
-        .decode(signed.trim().as_bytes())
-        .unwrap();
-    let signed_u8: &[u8] = signed_decoded.as_slice();
-
+    /*     println!("\nPlease enter the signature: \n");
+        let mut signed = String::new();
+        let _ = std::io::stdin().read_line(&mut signed);
+        let signed_decoded = general_purpose::STANDARD
+            .decode(signed.trim())
+            .unwrap();
+        let signed_u8: &[u8] = signed_decoded.as_slice();
+    */
+    let signature: [u8; 256] = [
+        93, 158, 218, 5, 89, 196, 44, 112, 225, 56, 227, 238, 194, 18, 55, 88, 129, 248, 121, 19,
+        194, 65, 168, 5, 223, 63, 70, 39, 157, 65, 190, 201, 119, 194, 109, 79, 43, 126, 25, 233,
+        113, 145, 34, 186, 166, 199, 12, 222, 176, 170, 70, 193, 171, 46, 149, 214, 167, 162, 56,
+        23, 227, 157, 225, 125, 201, 27, 127, 142, 192, 234, 146, 203, 169, 139, 235, 125, 190,
+        174, 235, 27, 116, 172, 223, 185, 29, 61, 162, 60, 189, 114, 253, 91, 141, 46, 201, 204,
+        28, 230, 144, 226, 189, 215, 226, 2, 113, 114, 180, 68, 87, 118, 72, 164, 77, 178, 116,
+        248, 72, 234, 22, 20, 45, 158, 61, 223, 208, 8, 30, 43, 203, 34, 212, 184, 183, 133, 235,
+        73, 119, 9, 92, 156, 166, 239, 160, 249, 89, 37, 130, 62, 125, 240, 59, 234, 245, 219, 11,
+        230, 117, 223, 39, 126, 204, 81, 94, 173, 54, 78, 13, 67, 63, 220, 113, 194, 222, 162, 28,
+        255, 2, 185, 193, 73, 243, 65, 149, 140, 109, 63, 132, 183, 43, 138, 40, 253, 30, 40, 101,
+        222, 16, 199, 216, 59, 228, 188, 175, 85, 32, 97, 214, 73, 238, 99, 94, 109, 207, 254, 198,
+        104, 100, 76, 108, 166, 154, 6, 64, 68, 52, 250, 251, 57, 84, 71, 139, 60, 29, 86, 197,
+        162, 50, 145, 68, 173, 175, 185, 116, 223, 156, 255, 97, 85, 74, 135, 59, 123, 4, 122, 238,
+        156,
+    ];
+    let signature_u8: &[u8] = &signature;
     // Unsignierte Daten einlesen
-    println!("\nPlease enter the raw data: \n");
+    /*     println!("\nPlease enter the raw data: \n");
     let mut raw = String::new();
     let _ = std::io::stdin().read_line(&mut raw);
-    let encrypted_bytes = raw.trim_end().as_bytes();
+    */
+    let raw = "Hello, World";
+    let encrypted_bytes = raw.trim().as_bytes();
 
     // Signatur verifizieren
     let mut verifier =
-        RSAVerifier::new(MessageDigest::sha256(), &key_pkey).expect("failed to create verifier");
+        Verifier::new(MessageDigest::sha256(), &key_pkey).expect("failed to create verifier");
     verifier
         .update(encrypted_bytes)
         .expect("failed to update verifier");
     verifier
-        .verify(signed_u8)
+        .verify(signature_u8)
         .expect("failed to verify signature")
 }
 
@@ -272,11 +282,26 @@ fn sign(device: &mut YubiKey) {
     }
 }
 
-fn decr_data(device: &mut YubiKey) {
-    println!("\nPlease enter the encrypted data: \n");
-    let mut encrypted = String::new();
-    let _ = std::io::stdin().read_line(&mut encrypted);
-    let encrypted_bytes = encrypted.trim_end().as_bytes();
+fn encrypt_rsa(rsa_string: String) -> String {
+    println!("\nPlease enter the data to encrypt: \n");
+    let mut data = String::new();
+    let _ = std::io::stdin().read_line(&mut data);
+    let data = data.trim();
+    let data = data.as_bytes();
+
+    let rsa = Rsa::public_key_from_pem(rsa_string.as_bytes())
+        .expect("failed to create RSA from public key PEM");
+
+    let mut encrypted_data = vec![0; rsa.size() as usize];
+    rsa.public_encrypt(data, &mut encrypted_data, Padding::PKCS1)
+        .expect("failed to encrypt data");
+    let encrypted_data_base64 = general_purpose::STANDARD.encode(encrypted_data);
+    println!("\n\nEncrypted Data: {:?}", encrypted_data_base64);
+    encrypted_data_base64
+}
+
+fn decr_data_rsa(device: &mut YubiKey, enc: String) {
+    let encrypted_bytes = enc.as_bytes();
     let encrypted_bytes_decoded = general_purpose::STANDARD.decode(encrypted_bytes).unwrap();
     let input: &[u8] = &encrypted_bytes_decoded;
     //    println!("{:?}", encrypted_bytes);
@@ -287,9 +312,10 @@ fn decr_data(device: &mut YubiKey) {
         piv::SlotId::KeyManagement,
     );
 
+    ///Entfernt PKCS1-Padding von einem Byte-Array
     fn remove_pkcs1_padding(buffer: &[u8]) -> Result<Vec<u8>, &'static str> {
         let mut pos = 2; // Start nach dem ersten Padding-Byte `0x02`
-        if buffer[0] != 2 {
+        if buffer[0] != 0 {
             return Err("Invalid padding");
         }
         // Überspringe alle non-zero Bytes
@@ -303,22 +329,14 @@ fn decr_data(device: &mut YubiKey) {
         Ok(buffer[pos + 1..].to_vec())
     }
 
-    // Anwendungsbeispiel in deinem Code
-
     match decrypted {
-        Ok(buffer) => {
-            let hex = hex::encode(&buffer);
-            println!("{}", hex);
-            let string = String::from_utf8_lossy(&buffer);
-            println!("\nDecrypted (lossy): \n{}", string);
-            match remove_pkcs1_padding(&buffer) {
-                Ok(data) => {
-                    let string = String::from_utf8_lossy(&data);
-                    println!("\nDecrypted (lossy): \n{}", string);
-                }
-                Err(err) => println!("Padding error: {}", err),
+        Ok(buffer) => match remove_pkcs1_padding(&buffer) {
+            Ok(data) => {
+                let string = String::from_utf8_lossy(&data);
+                println!("\nDecrypted (lossy): \n{}", string);
             }
-        }
+            Err(err) => println!("Padding error: {}", err),
+        },
         Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
     }
 }
@@ -328,7 +346,8 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
     if let Ok(key_info) = generated_key {
         let value = key_info.subject_public_key;
         let bytes = BitString::as_bytes(&value).unwrap();
-
+        let b_65 = general_purpose::STANDARD.encode(bytes); // Convert BitString to bytes before encoding
+        println!("Key: {:?}", b_65);
         return bytes.to_vec();
     }
     println!("Fehler beim Zugriff auf den öffentlichen Schlüssel.");
@@ -336,28 +355,29 @@ fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) 
 }
 
 // Key in PEM und base64 konvertieren
-fn encode_key(key: Vec<u8>) {
+fn encode_key(key: Vec<u8>) -> String {
     // KEy in Base64 umwandeln
-    let key_b64 = general_purpose::STANDARD.encode(&key);
-    let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{}", key_b64);
-    println!("\nPublic Key: \n\n{}", key_b64_new);
-    // let pem = Pem::new("PUBLIC KEY", key_b64_new);
-    let pem_key = format!(
+    let mut key_b64 = general_purpose::STANDARD.encode(&key);
+    key_b64 = format!(
         "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-        key_b64_new
+        key_b64.trim()
     );
-    println!("\nPEM-Key:\n\n{}", pem_key);
-    /*   let mut pem_key_new = pem_key.replace("\r", "");
+    println!("\n\nPEM-Key:\n\n{}", key_b64);
+    return key_b64;
+    /*    let pem = Pem::new("PUBLIC KEY", key);
+        let pem_key = encode(&pem);
+        println!("\nPEM-Key:{:?}", pem_key);
+        let mut pem_key_new = pem_key.replace("\r", "");
         pem_key_new = pem_key_new.replace("\n", "");
-        println!("\n New:\n\n{}", pem_key_new);
+        println!("\n New: {:?}", pem_key_new);
 
         let mut keys: Vec<String> = Vec::new();
         keys.push(pem_key);
         keys.push(pem_key_new);
-    */
-    // return keys;
-}
 
+        return keys;
+    */
+}
 fn open_device() -> YubiKey {
     loop {
         println!("Please connect your Yubikey and press Enter.");
