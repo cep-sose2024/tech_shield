@@ -90,6 +90,7 @@ fn menu() {
     }
 }
 
+#[warn(dead_code)]
 fn verify_signature() {
     println!("\nPlease enter the public key: \n");
     let mut key = String::new();
@@ -166,7 +167,10 @@ fn input_verify_signature() -> bool {
         println!("\nPlease enter the signature: \n");
         let mut signed = String::new();
         let _ = std::io::stdin().read_line(&mut signed);
-        let signed_u8 = signed.trim().as_bytes();
+        let signature = general_purpose::STANDARD
+        .decode(signed.as_bytes())
+        .unwrap();
+        let signed_u8 = signature   .trim().as_bytes();
 
         // Unsignierte Daten einlesen
         println!("\nPlease enter the raw data: \n");
@@ -183,35 +187,41 @@ fn input_verify_signature() -> bool {
 
     // Public Key
     let rsa = "-----BEGIN PUBLIC KEY-----
-    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3VvTO6StTw/D+MCsYmT/63eBOVacJ3XMpG1d0T2GkjOoP2N0RRsx/JvcdIDQxoxIBZ7jvD+CDBfALAOMlcf6DFVaH8975Lqz/yADwk+XZBSZ1h+sfEif79VR5tfjmhuAP0Kkww99Emy43zBtm6z61fwzhUIkukMUb78yGlFmV0kYWKa41cn1dROadxKc2Hjz6Vv+3IQ+fiOZXkEVqOhaFckE7SRqZmMxCWndv0G3OHcScXNsY01yavm2plkTmmJhKLBEjzThaoVKJAmnfX6VlQ39GRcWQ+bz4U3C6GEV2/AgiUJum40acr3HJGZUniIjY2NGxy+fe+emMEZuTMRtHwIDAQAB
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiOUaTrXUryBeLx6S8qpZa4Dg/y+HCmfKoGgC8P4DsYUo4x3nDnAPVMx9nkbJ8WDdFub03zwGLbvGNb/4IW9eEHCT21KgzNXcYd8WefWPZ4TWOpCx5R/ctrDOpIY3oK9mQCVaAbM9WZmFMRdTrdm1mMeKXwPTkh/NUS8JbZwsreQmRDWDs48QeHpsY+nPG1FpkCSDLDaADU/sWegBhyvZu30X0jTVA7orejD2yDG5qE9L90L5G64YsStGwxx/bn3K99RHutO+VRAVKXZMXJwnuVHIMceI3UR4A+v+eu1Ifpdstp4ElYkSs+893AjaOgsqMWZaekl7xTl2jOaL7CjyRQIDAQAB
 -----END PUBLIC KEY-----
-    ";
+    
+    
+    "
+    ;
+
     let rsa = Rsa::public_key_from_pem(rsa.trim().as_bytes())
         .expect("failed to create RSA from public key PEM");
     let key_pkey = PKey::from_rsa(rsa).unwrap();
-
-    // Signatur als Bytes
-    /*   let signature = [
-            93, 158, 218, 5, 89, 196, 44, 112, 225, 56, 227, 238, 194, 18, 55, 88, 129, 248, 121, 19,
-            194, 65, 168, 5, 223, 63, 70, 39, 157, 65, 190, 201, 119, 194, 109, 79, 43, 126, 25, 233,
-            113, 145, 34, 186, 166, 199, 12, 222, 176, 170, 70, 193, 171, 46, 149, 214, 167, 162, 56,
-            23, 227, 157, 225, 125, 201, 27, 127, 142, 192, 234, 146, 203, 169, 139, 235, 125, 190,
-            174, 235, 27, 116, 172, 223, 185, 29, 61, 162, 60, 189, 114, 253, 91, 141, 46, 201, 204,
-            28, 230, 144, 226, 189, 215, 226, 2, 113, 114, 180, 68, 87, 118, 72, 164, 77, 178, 116,
-            248, 72, 234, 22, 20, 45, 158, 61, 223, 208, 8, 30, 43, 203, 34, 212, 184, 183, 133, 235,
-            73, 119, 9, 92, 156, 166, 239, 160, 249, 89, 37, 130, 62, 125, 240, 59, 234, 245, 219, 11,
-            230, 117, 223, 39, 126, 204, 81, 94, 173, 54, 78, 13, 67, 63, 220, 113, 194, 222, 162, 28,
-            255, 2, 185, 193, 73, 243, 65, 149, 140, 109, 63, 132, 183, 43, 138, 40, 253, 30, 40, 101,
-            222, 16, 199, 216, 59, 228, 188, 175, 85, 32, 97, 214, 73, 238, 99, 94, 109, 207, 254, 198,
-            104, 100, 76, 108, 166, 154, 6, 64, 68, 52, 250, 251, 57, 84, 71, 139, 60, 29, 86, 197,
-            162, 50, 145, 68, 173, 175, 185, 116, 223, 156, 255, 97, 85, 74, 135, 59, 123, 4, 122, 238,
-            156,
+    /*
+        // Signatur als Bytes
+        let signature = [
+            106, 110, 3, 220, 35, 146, 221, 88, 230, 118, 157, 167, 59, 178, 211, 24, 48, 72, 213, 85,
+            175, 231, 3, 79, 21, 244, 152, 250, 105, 237, 220, 74, 43, 45, 216, 105, 183, 204, 131,
+            149, 160, 252, 155, 208, 54, 138, 230, 122, 40, 126, 58, 23, 56, 221, 26, 7, 162, 47, 49,
+            246, 152, 157, 55, 24, 160, 239, 147, 125, 35, 219, 143, 253, 103, 228, 156, 160, 99, 18,
+            61, 119, 146, 236, 39, 53, 67, 130, 188, 147, 108, 168, 233, 34, 253, 176, 207, 46, 143,
+            236, 24, 57, 8, 151, 179, 218, 239, 106, 174, 86, 156, 25, 4, 47, 182, 69, 21, 130, 94,
+            212, 85, 118, 152, 152, 107, 126, 15, 238, 199, 82, 89, 202, 55, 223, 76, 214, 209, 233,
+            178, 185, 24, 58, 144, 220, 188, 219, 230, 54, 121, 37, 123, 24, 153, 162, 158, 76, 66, 92,
+            172, 35, 247, 248, 101, 111, 80, 136, 229, 1, 27, 133, 37, 228, 196, 145, 1, 172, 245, 96,
+            154, 115, 224, 245, 159, 144, 185, 104, 142, 193, 241, 255, 17, 176, 249, 225, 91, 153,
+            247, 16, 37, 10, 84, 111, 78, 190, 181, 158, 198, 124, 108, 33, 143, 139, 44, 125, 33, 140,
+            29, 119, 134, 6, 195, 138, 154, 215, 184, 208, 47, 60, 56, 43, 29, 1, 0, 227, 253, 47, 77,
+            6, 56, 189, 32, 169, 153, 134, 145, 5, 212, 47, 224, 50, 64, 227, 73, 1, 105, 223, 84, 7,
         ];
         let signature_u8: &[u8] = &signature;
     */
     // Signatur als Base64
-    let signature = "VuEmpMF9vfkCwaUrU/WX++IoYT1JDf/Bv2I8ALtBo9gOq0tmReWFtk4HDW+gKjjB5domv7DlHlVpSmXRS+OkuwXbw6PC9aua0Znvwq8S44qxbDUrLUB4SuJQWYTax+YYVn3Yxp05oLEOCQvdxN5rJ6d3ds9cUOYuT4xAu1IZsarpwt/Ia4rkjOKO4bFA4GFTuxiLBAr1TWSqW3dzcLQh8ZK3w34mzJeWjqbl9JC1lPjeyCnAvb5mFEk0el9ws1S+TEcLjfTHdZmIsgYXhjF5ZBfJAuY2jM1HRs8ygYUvi82U/WAyS+45hEh+wvgnwmLUIvE/84g5ogRC4pVJWEInvQ==";
-    let signature_u8 = signature.as_bytes();
+    let signature = "bLqf0avoz9nZ0TJ88/gZare+Y+NqJHD9CBslICVCcQKMaB5Fnog/Xjj4A2NiINFzv46907F5pFObcWGmjfWhTg3ngUG2jK42v8YUUZyTvHulu/Ir0CKVB54EXnyWcjeEz3MMRZJPyqjteUBIB9cHWfmq5r0GPh99xdrqV/tm/8Nf+JpEXLmhpvHT/7gAR3rcFb/Od651DbvS6QXtX+fqmziBuLIH/V5PMAyEpCMlv+7wN/4/YXlWfINxZLp+Qbb219MRYK8CeMc+iqoKmdAO7wuVkokkRBw2nvFxDgT4gzf4l6tuDUcF0Tj5V1HbVuOWcrDvJmsImz8rF7Id48Ka9Q==";
+    let signature = general_purpose::STANDARD
+        .decode(signature.as_bytes())
+        .unwrap();
+    let signature_u8 = signature.as_slice();
 
     // Msg
     let raw = "test";
@@ -257,21 +267,23 @@ fn sign(device: &mut YubiKey) {
     let mut data = String::new();
     let _ = std::io::stdin().read_line(&mut data);
 
-    //   let length = data.len();
-
+    // habe ich geprüft: Umwandlung findet richtig statt
     let data_vec = data.trim().as_bytes().to_vec();
 
+    // Hashing wird richtig ausgeführt
     // Input wird gehasht
     let hashed = hash_data(data_vec, "SHA256");
     let hashed_u8: &[u8] = &hashed;
 
+    // Padding wird richtig eingefügt
     // Padding wird zum Hash hinzugefügt
     let padded_data = apply_pkcs1v15_padding(hashed_u8, 256);
 
     let padded_u8: &[u8] = &padded_data;
 
+    // wenn ich das auskommentiere, wird selbe Signatur erzeugt -> Es wird nicht automatisch neuer Key generiert
     // new key for signing in Signature-Slot
-    let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
+    let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::KeyManagement);
     //  let formatted_key = format_key(generated_key);
     let rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
     println!("\n\nPEM-Key:\n\n{}", rsa_pub_key);
@@ -285,7 +297,7 @@ fn sign(device: &mut YubiKey) {
         device,
         padded_u8,
         piv::AlgorithmId::Rsa2048,
-        piv::SlotId::Signature,
+        piv::SlotId::KeyManagement,
     );
 
     match signature {
@@ -379,7 +391,7 @@ fn encode_key(key: Vec<u8>) -> String {
         "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
         key_b64.trim()
     );
-    println!("\n\nPEM-Key:\n\n{}", key_b64);
+    //   println!("\n\nPEM-Key:\n\n{}", key_b64);
     return key_b64;
     /*    let pem = Pem::new("PUBLIC KEY", key);
         let pem_key = encode(&pem);
