@@ -269,16 +269,20 @@ fn sign(device: &mut YubiKey) {
 
     // habe ich geprüft: Umwandlung findet richtig statt
     let data_vec = data.trim().as_bytes().to_vec();
+    println!("{:?}", data_vec);
 
     // Hashing wird richtig ausgeführt
     // Input wird gehasht
     let hashed = hash_data(data_vec, "SHA256");
     let hashed_u8: &[u8] = &hashed;
 
-    // Padding wird richtig eingefügt
+    println!("Hashed: {:?}", hashed_u8);
+    println!("Hex: {:?}", hex::encode(hashed_u8));
+
+    // Fehler im Padding selbst?
     // Padding wird zum Hash hinzugefügt
     let padded_data = apply_pkcs1v15_padding(hashed_u8, 256);
-
+    println!("{:?}", padded_data);
     let padded_u8: &[u8] = &padded_data;
 
     // wenn ich das auskommentiere, wird selbe Signatur erzeugt -> Es wird nicht automatisch neuer Key generiert
