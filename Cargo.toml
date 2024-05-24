@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-[dependencies]
 yubikey = { version = "0.8.0", features = ["untested"] }
 x509-cert = "0.2.5"
 base64 = "0.22.1"
