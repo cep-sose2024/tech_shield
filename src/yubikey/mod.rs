@@ -6,7 +6,7 @@ use crate::common::crypto::{
     KeyUsage,
 };
 use tracing::instrument;
-use yubikey::ykcore::ykdef::{YubiKey, YubiKeyError};
+use yubikey::YubiKey;
 
 pub mod key_handle;
 pub mod provider;
@@ -21,7 +21,11 @@ pub mod provider;
 #[repr(C)]
 pub struct YubiKeyProvider {
     /// A unique identifier for the cryptographic key managed by this provider.
-    key_id: String,
+    pub(super) key_id: String,
+    pub(super) yubikey: YubiKey,
+    pub(super) key_algorithm: AsymmetricEncryption,
+    pub(super) hash: Option<Hash>,
+    pub(super) key_usages: Option<Vec<KeyUsage>>,
     // Add fields here specific to YubiKey implementation
 }
 
@@ -39,6 +43,10 @@ impl YubiKeyProvider {
     pub fn new(key_id: String) -> Self {
         Self {
             key_id,
+            yubikey: None,
+            key_algorithm: None,
+            hash: None,
+            key_usages: None,
             // Initialize YubiKey specific fields here
         }
     }
