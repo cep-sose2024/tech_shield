@@ -117,6 +117,7 @@ impl Provider for YubiKeyProvider {
         self.key_usages = Some(key_usages);
     }
 
+    // Halbfertiger Code, kann benutzt werden wenn PIN-Abfrage in App implementiert wird
     /*
     #[instrument]
     fn initialize_module(
