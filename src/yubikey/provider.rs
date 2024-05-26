@@ -9,6 +9,7 @@ use crate::{
     },
     yubikey::{YubiKeyConfig, YubiKeyError},
 };
+use base64::{engine::general_purpose, Engine};
 use tracing::instrument;
 use yubikey::Error;
 use yubikey::{piv::algorithm::AlgorithmId, piv::slot::SlotId, YubiKey};
@@ -31,29 +32,44 @@ impl Provider for YubiKeyProvider {
     ///
     /// # Returns
     ///
-    /// A `Result` that, on success, contains `Ok(())`, indicating that the key was created successfully.
-    /// On failure, it returns a `SecurityModuleError`.
+    /// A `Result` that, on success, contains `Ok(String)`, which represents the public key, indicating that the key was created successfully.
+    /// On failure, it returns a `yubikey::Error`.
     #[instrument]
     fn create_key(
         &mut self,
         //key_id: &str, notwendig? self.key_id???
         //config: Box<dyn ProviderConfig>,
-    ) -> Result<SubjectPublicKeyInfoOwned, yubikey::Error> {
+    ) -> Result<String, yubikey::Error> {
         match self.key_usage {
             "SignEncrypt" => {
-                let gen_key = piv::generate(
-                    self.yubikey,
-                    SlotId::KeyManagement,
-                    AlgorithmId::RSA2048,
-                    yubikey::PinPolicy::Default,
-                    yubikey::TouchPolicy::Default,
-                );
-                match gen_key {
-                    Ok(()) => return gen_key,
-                    Err(err) => return Error::KeyError,
+                match self.key_algorithm {
+                    "Rsa" => {
+                        
+                        let gen_key = piv::generate(
+                            self.yubikey,
+                            SlotId::KeyManagement,
+                            AlgorithmId::RSA2048,
+                            yubikey::PinPolicy::Default,
+                            yubikey::TouchPolicy::Default,
+                        );
+                        
+                        match gen_key {
+                            Ok(()) =>  {
+                            gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
+                            gen_key = general_purpose::STANDARD.encode(&gen_key);
+                            gen_key = format!(
+                            "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----", gen_key.trim());
+                            return gen_key
+                            },
+                            Err(err) => return Error::KeyError,
+                        }
+                    },
+                    "Ecc" => {
+                        // TODO, doesn´t work yet
+                    },
+                    "_" => Error::NotSupported,
                 }
-                return gen_key;
-            }
+            },
 
             "_" => Error::NotSupported,
         }
@@ -78,7 +94,7 @@ impl Provider for YubiKeyProvider {
         &mut self,
         key_id: &str,
         config: Box<dyn ProviderConfig>,
-    ) -> Result<(), SecurityModuleError> {
+    ) -> Result<(), yubikey::Error> {
         // Method implementation goes here
     }
 
@@ -90,21 +106,20 @@ impl Provider for YubiKeyProvider {
     /// # Arguments
     ///
     /// * `key_algorithm` - The asymmetric encryption algorithm to be used for the key.
-    /// * `sym_algorithm` - An optional symmetric encryption algorithm to be used with the key.
     /// * `hash` - An optional hash algorithm to be used with the key.
     /// * `key_usages` - A vector of `KeyUsage` values specifying the intended usages for the key.
     ///
     /// # Returns
     ///
     /// A `Result` that, on success, contains `Ok(())`, indicating that the module was initialized successfully.
-    /// On failure, it returns a `SecurityModuleError`.
+    /// On failure, it returns a Yubikey based `Error`.
     #[instrument]
     fn initialize_module(
         &mut self,
         key_algorithm: AsymmetricEncryption,
         hash: Option<Hash>,
         key_usages: Vec<KeyUsage>,
-    ) -> Result<(), SecurityModuleError> {
+    ) -> Result<(), Error> {
         let yubikey = YubiKey::open().map_err(|_| Error::NotFound);
         yubikey
             .verify_pin("123456".as_ref())
