@@ -1,51 +1,11 @@
 #[cfg(test)]
-use crate::{
-    common::crypto::algorithms::{encryption::SymmetricMode, hashes::Sha2Bits, KeyBits},
-    tpm::TpmConfig,
-};
 #[allow(unused_imports)]
-use crate::{
-    common::{
-        crypto::{
-            algorithms::{
-                encryption::{AsymmetricEncryption, BlockCiphers, EccCurves, EccSchemeAlgorithm},
-                hashes::Hash,
-            },
-            KeyUsage,
-        },
-        traits::module_provider::Provider,
-    }, 
-    yubikey::YubiKeyProvider,
-};
-
+use crate::src::yubikey::mod;
+use provider::YubikeyProvider;
 #[test]
 fn test_create_rsa_key() {
     let mut provider = YubiKeyProvider::new("test_rsa_key".to_string());
-/* 
-    let config = TpmConfig::new(
-        AsymmetricEncryption::Rsa(KeyBits::Bits4096),
-        BlockCiphers::Aes(SymmetricMode::Gcm, KeyBits::Bits512),
-        Hash::Sha2(Sha2Bits::Sha256),
-        vec![
-            KeyUsage::SignEncrypt,
-            KeyUsage::ClientAuth,
-            KeyUsage::Decrypt,
-            KeyUsage::CreateX509,
-        ],
-    );
-*/
-    provider
-        .initialize_module("Rsa", KeyUsage::SignEncrypt)
-        .expect("Failed to initialize module");
-    provider
-        .create_key()
-        .expect("Failed to create RSA key");
-}
-
-#[test]
-fn test_create_ecc_key() {
-    let mut provider = YubiKeyProvider::new("test_rsa_key".to_string());
-    /* 
+    /*
         let config = TpmConfig::new(
             AsymmetricEncryption::Rsa(KeyBits::Bits4096),
             BlockCiphers::Aes(SymmetricMode::Gcm, KeyBits::Bits512),
@@ -58,17 +18,37 @@ fn test_create_ecc_key() {
             ],
         );
     */
-        provider
-            .initialize_module("Ecc", KeyUsage::SignEncrypt)
-            .expect("Failed to initialize module");
-        provider
-            .create_key()
-            .expect("Failed to create RSA key");
-    }
+    provider
+        .initialize_module("Rsa", KeyUsage::SignEncrypt)
+        .expect("Failed to initialize module");
+    provider.create_key().expect("Failed to create RSA key");
+}
 
 #[test]
+fn test_create_ecc_key() {
+    let mut provider = YubiKeyProvider::new("test_rsa_key".to_string());
+    /*
+        let config = TpmConfig::new(
+            AsymmetricEncryption::Rsa(KeyBits::Bits4096),
+            BlockCiphers::Aes(SymmetricMode::Gcm, KeyBits::Bits512),
+            Hash::Sha2(Sha2Bits::Sha256),
+            vec![
+                KeyUsage::SignEncrypt,
+                KeyUsage::ClientAuth,
+                KeyUsage::Decrypt,
+                KeyUsage::CreateX509,
+            ],
+        );
+    */
+    provider
+        .initialize_module("Ecc", KeyUsage::SignEncrypt)
+        .expect("Failed to initialize module");
+    provider.create_key().expect("Failed to create RSA key");
+}
+/*
+#[test]
 fn test_load_rsa_key() {
-    let mut provider = TpmProvider::new("test_rsa_key".to_string());
+    let mut provider = YubiKeyProvider::new("test_rsa_key".to_string());
 
     let config = TpmConfig::new(
         AsymmetricEncryption::Rsa(KeyBits::Bits4096),
@@ -132,3 +112,4 @@ fn test_load_ecdh_key() {
         .load_key("test_ecdh_key", config)
         .expect("Failed to load ECDH key");
 }
+*/

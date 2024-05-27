@@ -1,3 +1,4 @@
+#[cfg(test)]
 use crate::{
     common::crypto::algorithms::{encryption::SymmetricMode, hashes::Sha2Bits, KeyBits},
     tpm::TpmConfig,
