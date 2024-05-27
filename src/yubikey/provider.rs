@@ -39,40 +39,55 @@ impl Provider for YubiKeyProvider {
         &mut self,
         //key_id: &str, notwendig? self.key_id???
         //config: Box<dyn ProviderConfig>,
-    ) -> Result<String, yubikey::Error> {
+    ) -> Result<KeyHandle, yubikey::Error> {
         match self.key_usage {
-            "SignEncrypt" => {
-                match self.key_algorithm {
-                    "Rsa" => {
-                        let gen_key = piv::generate(
-                            self.yubikey,
-                            SlotId::KeyManagement,
-                            AlgorithmId::RSA2048,
-                            yubikey::PinPolicy::Default,
-                            yubikey::TouchPolicy::Default,
-                        );
-
-                        match gen_key {
-                            Ok(()) => {
-                                gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
-                                gen_key = general_purpose::STANDARD.encode(&gen_key);
-                                gen_key = format!(
-                                    "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-                                    gen_key.trim()
-                                );
-                                return gen_key;
-                            }
-                            Err(err) => return Error::KeyError,
+            "SignEncrypt" => match self.key_algorithm {
+                "Rsa" => {
+                    let gen_key = piv::generate(
+                        self.yubikey,
+                        self.slot_id,
+                        AlgorithmId::RSA2048,
+                        yubikey::PinPolicy::Default,
+                        yubikey::TouchPolicy::Default,
+                    );
+                    let key_algorithm = AlgorithmId::RSA2048;
+                    match gen_key {
+                        Ok(()) => {
+                            gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
+                            gen_key = general_purpose::STANDARD.encode(&gen_key);
+                            gen_key = format!(
+                                "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+                                gen_key.trim()
+                            );
+                            let key_handle = KeyHandle::new(
+                                self.key_id,
+                                self.yubikey,
+                                key_algorithm,
+                                self.key_usage,
+                                self.slot_id,
+                                gen_key,
+                            );
+                            return key_handle;
                         }
+                        Err(err) => return Err(Error::KeyError),
                     }
-                    "Ecc" => {
-                        // TODO, doesn´t work yet
-                    }
-                    "_" => Error::NotSupported,
                 }
-            }
+                "Ecc" => {
+                    let gen_key = piv::generate(
+                        self.yubikey,
+                        self.slot_id,
+                        AlgorithmId::EccP256,
+                        yubikey::PinPolicy::Default,
+                        yubikey::TouchPolicy::Default,
+                    );
+                    let key_handle =
+                        KeyHandle::new(self.yubikey, self.key_algorithm, gen_key, self.hash);
+                    return key_handle;
+                }
+                "_" => Err(Error::NotSupported),
+            },
 
-            "_" => Error::NotSupported,
+            "_" => Err(Error::NotSupported),
         }
     }
     /// Loads an existing cryptographic key identified by `key_id`.
@@ -95,8 +110,9 @@ impl Provider for YubiKeyProvider {
         &mut self,
         key_id: &str,
         config: Box<dyn ProviderConfig>,
-    ) -> Result<(), yubikey::Error> {
+    ) -> Result<KeyHandle, yubikey::Error> {
         // Method implementation goes here
+        return Err(Error::NotImplemented);
     }
 
     /// Initializes the YubiKey module and returns a handle for cryptographic operations.
@@ -117,20 +133,27 @@ impl Provider for YubiKeyProvider {
     #[instrument]
     fn initialize_module(
         &mut self,
-        key_algorithm: AsymmetricEncryption,
-        hash: Option<Hash>,
-        key_usages: Vec<KeyUsage>,
+        key_algorithm: Option<AlgorithmId>,
+        key_usage: Option<Vec<KeyUsage>>,
+        slot_id: Option<SlotId>,
     ) -> Result<(), Error> {
         let yubikey = YubiKey::open().map_err(|_| Error::NotFound);
-        yubikey
+        let verify = yubikey
             .verify_pin("123456".as_ref())
             .map_err(|_| Error::WrongPin {
                 tries: yubikey::get_pin_retries(),
             });
         self.yubikey = yubikey;
         self.key_algorithm = Some(key_algorithm);
-        self.hash = hash;
         self.key_usages = Some(key_usages);
+
+        if verify.is_ok() {
+            return Ok(());
+        } else {
+            return Err(Error::WrongPin {
+                tries: yubikey::get_pin_retries(),
+            });
+        }
     }
 
     // Halbfertiger Code, kann benutzt werden wenn PIN-Abfrage in App implementiert wird

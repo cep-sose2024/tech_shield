@@ -1,42 +1,76 @@
-use yubikey;
+use crate::common::crypto::{
+    algorithms::{
+        encryption::{AsymmetricEncryption, BlockCiphers, EccSchemeAlgorithm},
+        hashes::{Hash, Sha2Bits},
+    },
+    KeyUsage,
+};
+use tracing::instrument;
+use yubikey::YubiKey;
 
 pub mod key_handle;
 pub mod provider;
 
-/// A HSM-based cryptographic provider for managing cryptographic keys and performing cryptrograpic operations.
-/// 
-/// This provider is based on the YubiKey hardware security module (HSM) and provides a set of cryptographic operations
-/// like signing and decryption. It provides a secure and hardware-backend
-/// implementation of cryptographic operations.
-#[derive(Clone,Debug)]
+/// A YubiKey-based cryptographic provider for managing cryptographic keys and performing
+/// cryptographic operations.
+///
+/// This provider leverages the YubiKey API to interact with a YubiKey device for operations
+/// like signing, encryption, and decryption. It provides a secure and hardware-backed solution
+/// for managing cryptographic keys and performing cryptographic operations.
+#[derive(Clone, Debug)]
+#[repr(C)]
 pub struct YubiKeyProvider {
-    /// A unigue identifier for the cryptographic key managed by this provider.
-    key_id: String,
-    pub(super) yubikey: Option<yubikey::YubiKey>,
-    pub(super) key_handle: Option<???tbd???>,
-    pub(super) handle: Option<yubikey::YubiKey>,
-    pub(super) key_algo: Option<yubikey::piv::AlgorithmId>,
-    pub(super) sym_algo: Option<yubikey::piv::AlgorithmId>,
-    pub(super) hash: Option<yubikey::piv::AlgorithmId>,
-    pub(super) key_usages: Option<Vec<yubikey::piv::SlotId>>,
-
+    /// A unique identifier for the cryptographic key managed by this provider.
+    pub(super) key_id: String,
+    pub(super) yubikey: YubiKey,
+    pub(super) key_algorithm: AsymmetricEncryption,
+    pub(super) key_usages: Option<Vec<KeyUsage>>,
+    pub(super) slot_id: SlotId,
 }
+
 impl YubiKeyProvider {
-    /// Constructs a new 'YubikKeyProvider'
-    /// 
+    /// Constructs a new `YubiKeyProvider`.
+    ///
     /// # Arguments
-    /// 
-    /// * 'key_id' - A string identifier for the cryptografic key to be managed by this provider.
-    pub fn new(key_id: String) -> Self{
+    ///
+    /// * `key_id` - A string identifier for the cryptographic key to be managed by this provider.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `YubiKeyProvider` with the specified `key_id`.
+    #[instrument]
+    pub fn new(
+        key_id: String,
+    ) -> Self {
         Self {
             key_id,
             yubikey: None,
-            key_handle: None,
-            handle: None,
-            key_algo: None,
-            sym_algo: None,
-            hash: None,
+            key_algorithm: None,
             key_usages: None,
+            slot_id: None,
+            // Initialize YubiKey specific fields here
         }
     }
+
+    pub struct KeyHandle {
+        pub (super) yubikey: YubiKey,
+        pub (super) key_algorithm: String,
+        pub (super) pkey: String,
+    }
+
+    impl KeyHandle for YubiKeyProvider {
+        
+        #[instrument]
+        fn new(yubikey: YubiKey, key_algorithm: String, pkey: String) -> Self {
+            Self {
+                key_id,
+                yubikey: None,
+                key_algorithm: None,
+                key_usages: None,
+                slot_id: None,
+                pkey: None,
+            }
+        }
+    // Add YubiKey specific methods here
+}
 }
