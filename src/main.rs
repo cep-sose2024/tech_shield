@@ -12,6 +12,7 @@ use rsa::sha2;
 //use rsa::signature::Verifier;
 use rsa::pss;
 use sha2::Sha256;
+use x509_cert::der::zeroize::Zeroizing;
 use x509_cert::der::{self, Encode};
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
@@ -121,18 +122,6 @@ fn menu() {
 
 fn save_object(device: &mut YubiKey) {
 
-    println!("\nPlease enter the ID where to save: \n");
-    let mut id = String::new();
-    let _ = std::io::stdin().read_line(&mut id);
-    let parsed = id.parse::<u32>();
-    let mut output: u32;
-    match parsed {
-        Ok(out) => {output = out;}
-        Err(_) => {
-            println!("ID must be a number.");
-            return;
-        }
-    }
 
     let key_name = "test";
     let slot = "R1";
@@ -165,29 +154,18 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuevHUr57tn1484nOQH48mtxc7KcauhYIbQsE
     data_slice[offset..offset + public_key.len()].copy_from_slice(public_key.as_bytes());
 
 
-    device.save_object(output, data_slice);
+    let klappt = device.save_object(1, data_slice);
 
 }
 
 fn load_object(device: &mut YubiKey) {
-    println!("\nPlease enter the ID where to load: \n");
-    let mut id = String::new();
-    let _ = std::io::stdin().read_line(&mut id);
-    let parsed = id.parse::<u32>();
-    let mut output: u32;
-    match parsed {
-        Ok(out) => {output = out;}
-        Err(_) => {
-            println!("ID must be a number.");
-            return;
-        }
-    }
     
-    let data = device.fetch_object(output);
-    let output;
+    let data = device.fetch_object(1);
+    println!("{:?}", data);
+    let mut output:Vec<u8> = Vec::new();
     match data {
         Ok(data) => {
-            
+            output = data.to_vec();
         }
         Err(err) => {
             println!("Error: {:?}", err);
@@ -195,13 +173,16 @@ fn load_object(device: &mut YubiKey) {
     }
 
 
-    let data = &output;
-
+    let data = output;
     let parts: Vec<&[u8]> = data.split(|&x| x == 0).collect();
     let key_name = std::str::from_utf8(parts[0]).unwrap();
+    println!("Key-Name: {}", key_name);
     let slot = std::str::from_utf8(parts[1]).unwrap();
+    println!("Slot: {}", slot);
     let key_usage = std::str::from_utf8(parts[2]).unwrap();
+    println!("Key-Usage: {}", key_usage);
     let public_key = std::str::from_utf8(parts[3]).unwrap();
+    println!("Key: {}", public_key);
 }
 
 #[warn(dead_code)]
