@@ -52,11 +52,11 @@ impl Provider for YubiKeyProvider {
     ) -> Result<(), yubikey::Error> {
 
         let key_name = self.key_id;
-        let mut usage = String::new();
+        let mut usage: &str = "";
 
         if !load_key().is_ok() {
             match self.key_usage {
-                "SignEncrypt" => match self.key_algorithm {
+                SignEncrypt => match self.key_algorithm {
                     "Rsa" => {
                         match get_free_slot() {
                             Ok(free) => {
@@ -113,7 +113,7 @@ impl Provider for YubiKeyProvider {
                     "_" => Err(Error::NotSupported("Algorithm not supported")),
                 },
 
-                "Decrypt" => {
+                Decrypt => {
                     match self.key_algorithm {
                         "Rsa" => {
                             match get_free_slot() {
@@ -154,13 +154,13 @@ impl Provider for YubiKeyProvider {
                     }
                 },
     
-                "_" => Err(Error::NotSupported("KeyUsage not supported")),
+                _ => Err(Error::NotSupported("KeyUsage not supported")),
             }
 
         } else {
 
             match self.key_usage {
-                "SignEncrypt" => match self.key_algorithm {
+                SignEncrypt => match self.key_algorithm {
                     "Rsa" => {
                         slot = self.slot_id;
                         usage = "encrypt";
@@ -203,7 +203,7 @@ impl Provider for YubiKeyProvider {
                     "_" => Err(Error::NotSupported("Algorithm not supported")),
                 },
 
-                "Decrypt" => {
+                Decrypt => {
                     match self.key_algorithm {
                         "Rsa" => {
                             slot = self.slot_id;
@@ -237,7 +237,7 @@ impl Provider for YubiKeyProvider {
                     }
                 },
     
-                "_" => Err(Error::NotSupported("KeyUsage not supported")),
+                _ => Err(Error::NotSupported("KeyUsage not supported")),
             }
 
         }
@@ -283,7 +283,7 @@ impl Provider for YubiKeyProvider {
                 Ok(())
             }
             Err(err) => {
-                error::Error;
+                error::Error
             }
         }
     
