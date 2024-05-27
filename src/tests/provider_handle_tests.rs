@@ -1,7 +1,7 @@
+use crate::yubikey::mod1::YubiKeyProvider;
 #[cfg(test)]
 #[allow(unused_imports)]
 use common::crypto::KeyUsage;
-use yubik;
 #[test]
 fn test_create_rsa_key() {
     let mut provider = YubiKeyProvider::new("test_rsa_key".to_string());
