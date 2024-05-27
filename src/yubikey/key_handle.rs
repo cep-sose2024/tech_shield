@@ -17,6 +17,7 @@ use yubikey::{
     piv::{self, algorithm::AlgorithmId, SlotId},
     MgmKey, YubiKey,
 };
+use super::YubiKeyProvider;
 
 /// Provides cryptographic operations for asymmetric keys on a YubiKey,
 /// such as signing, encryption, decryption, and signature verification.
@@ -42,10 +43,6 @@ fn sign_data(&self, data: &[u8]) -> Result<Vec<u8>, yubikey::Error> {
     let data = hasher.finalize();
     let data: &[u8] = &data;
 
-    // new key for signing in Signature-Slot
-    // Parameters needed through key_usage: AlgorithmId::EccP256, SlotId::Signature
-    let generated_key = create_key(self.yubikey);
-
     //TODO After PIN input implementation in App, insert code for re-authentication
     let verify = self.yubikey.verify_pin("123456".as_ref());
     if !verify.is_ok() {
@@ -65,7 +62,7 @@ fn sign_data(&self, data: &[u8]) -> Result<Vec<u8>, yubikey::Error> {
                 self.yubikey,
                 data,
                 piv::AlgorithmId::EccP256,
-                piv::SlotId::Signature,
+                self.slot_id,
             );
 
             match signature {
@@ -105,7 +102,7 @@ fn decrypt_data(&self, encrypted_data: &[u8]) -> Result<Vec<u8>, yubikey::Error>
                 self.yubikey,
                 input,
                 piv::AlgorithmId::Rsa2048,
-                piv::SlotId::KeyManagement,
+                self.slot_id,
             );
         }
         "Ecc" => {
@@ -152,10 +149,10 @@ fn decrypt_data(&self, encrypted_data: &[u8]) -> Result<Vec<u8>, yubikey::Error>
 /// A `Result` containing the encrypted data as a `Vec<u8>` on success, or a `yubikey::Error` on failure.
 /// Möglicher Fehler: Müssen Daten vor dem returnen noch in Base64 umgewandelt werden?
 #[instrument]
-fn encrypt_data(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, yubikey::Error> {
+fn encrypt_data(&self, data: &[u8]) -> Result<Vec<u8>, yubikey::Error> {
     match self.key_algorithm {
         "Rsa" => {
-            let rsa = Rsa::public_key_from_pem(key)
+            let rsa = Rsa::public_key_from_pem(self.pkey.trim().as_bytes())
                 .map_err(|_| "failed to create RSA from public key PEM");
             let mut encrypted_data = vec![0; rsa.size() as usize];
             rsa.public_encrypt(data, &mut encrypted_data, Padding::PKCS1)
@@ -187,11 +184,10 @@ fn verify_signature(
     &self,
     data: &[u8],
     signature: &[u8],
-    pkey: &[u8],
 ) -> Result<bool, SecurityModuleError> {
     match self.key_algorithm {
         "Rsa" => {
-            let rsa = Rsa::public_key_from_pem(pkey)
+            let rsa = Rsa::public_key_from_pem(self.pkey.trim().as_bytes())
                 .map_err(|_| "failed to create RSA from public key PEM");
             let key_pkey = PKey::from_rsa(rsa).unwrap();
 
@@ -205,7 +201,7 @@ fn verify_signature(
                 .map_err(|_| "failed to verify signature")
         }
         "Ecc" => {
-            let ecc = EcKey::public_key_from_pem(pkey)
+            let ecc = EcKey::public_key_from_pem(self.pkey.trim().as_bytes())
                 .map_err(|_| "failed to create ECC from public key PEM");
             let ecc = PKey::from_ec_key(ecc).map_err(|_| "failed to create PKey from ECC");
 

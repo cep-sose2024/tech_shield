@@ -26,6 +26,7 @@ pub struct YubiKeyProvider {
     pub(super) key_algorithm: AsymmetricEncryption,
     pub(super) key_usages: Option<Vec<KeyUsage>>,
     pub(super) slot_id: SlotId,
+    pub(super) pkey: String,
 }
 
 impl YubiKeyProvider {
@@ -48,10 +49,10 @@ impl YubiKeyProvider {
             key_algorithm: None,
             key_usages: None,
             slot_id: None,
-            // Initialize YubiKey specific fields here
+            pkey: None,
         }
     }
-
+/* 
     pub struct KeyHandle {
         pub (super) yubikey: YubiKey,
         pub (super) key_algorithm: String,
@@ -73,4 +74,5 @@ impl YubiKeyProvider {
         }
     // Add YubiKey specific methods here
 }
+*/
 }

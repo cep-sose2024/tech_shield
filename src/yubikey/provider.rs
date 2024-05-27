@@ -13,6 +13,8 @@ use base64::{engine::general_purpose, Engine};
 use tracing::instrument;
 use yubikey::Error;
 use yubikey::{piv::algorithm::AlgorithmId, piv::slot::SlotId, YubiKey};
+use super::YubiKeyProvider;
+
 
 /// Implements the `Provider` trait, providing cryptographic operations utilizing a YubiKey.
 ///
@@ -39,18 +41,18 @@ impl Provider for YubiKeyProvider {
         &mut self,
         //key_id: &str, notwendig? self.key_id???
         //config: Box<dyn ProviderConfig>,
-    ) -> Result<KeyHandle, yubikey::Error> {
+    ) -> Result<(), yubikey::Error> {
         match self.key_usage {
             "SignEncrypt" => match self.key_algorithm {
                 "Rsa" => {
                     let gen_key = piv::generate(
                         self.yubikey,
-                        self.slot_id,
+                        // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
+                        SlotId::KeyManagement,
                         AlgorithmId::RSA2048,
                         yubikey::PinPolicy::Default,
                         yubikey::TouchPolicy::Default,
                     );
-                    let key_algorithm = AlgorithmId::RSA2048;
                     match gen_key {
                         Ok(()) => {
                             gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
@@ -59,15 +61,8 @@ impl Provider for YubiKeyProvider {
                                 "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
                                 gen_key.trim()
                             );
-                            let key_handle = KeyHandle::new(
-                                self.key_id,
-                                self.yubikey,
-                                key_algorithm,
-                                self.key_usage,
-                                self.slot_id,
-                                gen_key,
-                            );
-                            return key_handle;
+                            self.pkey = gen_key;
+                            
                         }
                         Err(err) => return Err(Error::KeyError),
                     }
@@ -75,19 +70,19 @@ impl Provider for YubiKeyProvider {
                 "Ecc" => {
                     let gen_key = piv::generate(
                         self.yubikey,
-                        self.slot_id,
+                        // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
+                        SlotId::Signature,
                         AlgorithmId::EccP256,
                         yubikey::PinPolicy::Default,
                         yubikey::TouchPolicy::Default,
                     );
-                    let key_handle =
-                        KeyHandle::new(self.yubikey, self.key_algorithm, gen_key, self.hash);
-                    return key_handle;
+                    self.pkey = gen_key;
+                  
                 }
-                "_" => Err(Error::NotSupported),
+                "_" => Err(Error::NotSupported("Algorithm not supported")),
             },
 
-            "_" => Err(Error::NotSupported),
+            "_" => Err(Error::NotSupported("KeyUsage not supported")),
         }
     }
     /// Loads an existing cryptographic key identified by `key_id`.
@@ -110,7 +105,7 @@ impl Provider for YubiKeyProvider {
         &mut self,
         key_id: &str,
         config: Box<dyn ProviderConfig>,
-    ) -> Result<KeyHandle, yubikey::Error> {
+    ) -> Result<(), yubikey::Error> {
         // Method implementation goes here
         return Err(Error::NotImplemented);
     }
@@ -135,18 +130,19 @@ impl Provider for YubiKeyProvider {
         &mut self,
         key_algorithm: Option<AlgorithmId>,
         key_usage: Option<Vec<KeyUsage>>,
-        slot_id: Option<SlotId>,
     ) -> Result<(), Error> {
+
         let yubikey = YubiKey::open().map_err(|_| Error::NotFound);
         let verify = yubikey
             .verify_pin("123456".as_ref())
             .map_err(|_| Error::WrongPin {
                 tries: yubikey::get_pin_retries(),
             });
+
         self.yubikey = yubikey;
         self.key_algorithm = Some(key_algorithm);
         self.key_usages = Some(key_usages);
-
+     
         if verify.is_ok() {
             return Ok(());
         } else {

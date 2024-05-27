@@ -121,6 +121,9 @@ fn verify_signature() {
         .unwrap();
     let key_u8: &[u8] = key_decoded.as_slice();
 
+    let test = "alsdjhwölheaw";
+    let test_u8: &[u8] = test.trim().as_bytes();
+
     println!("\nPlease enter the signature: \n");
     let mut signed = String::new();
     let _ = std::io::stdin().read_line(&mut signed);
