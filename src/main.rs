@@ -1,24 +1,29 @@
 use base64::{engine::general_purpose, Engine};
 use md5::{Digest, Md5};
 use openssl::ec::EcKey;
-use openssl::ecdsa::EcdsaSigRef;
-use openssl::pkey::{PKeyRef, Public};
-use openssl::rsa::{Padding, Rsa};
+use openssl::pkey::Public;
+use openssl::rsa::Rsa;
+use openssl::rsa::Padding;
 use openssl::sign::Verifier;
 use openssl::{hash::MessageDigest, pkey::PKey};
-use openssl::{pkey, sign};
 use ring::signature;
 use rsa::sha2;
 //use rsa::signature::Verifier;
-use rsa::pss;
 use sha2::Sha256;
-use x509_cert::der::zeroize::Zeroizing;
-use x509_cert::der::{self, Encode};
+use x509_cert::der::Encode;
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
+
+const RETIRED_SLOT: [u32; 20] = [
+    0x005f_c10d, 0x005f_c10e, 0x005f_c10f, 0x005f_c110,
+    0x005f_c111, 0x005f_c112, 0x005f_c113, 0x005f_c114,
+    0x005f_c115, 0x005f_c116, 0x005f_c117, 0x005f_c118,
+    0x005f_c119, 0x005f_c11a, 0x005f_c11b, 0x005f_c11c,
+    0x005f_c11d, 0x005f_c11e, 0x005f_c11f, 0x005f_c120,
+];
 
 fn main() {
     menu();
@@ -123,7 +128,7 @@ fn menu() {
 fn save_object(device: &mut YubiKey) {
 
 
-    let key_name = "test";
+    let key_name = "test2";
     let slot = "R1";
     let public_key = "-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuevHUr57tn1484nOQH48mtxc7KcauhYIbQsEnA1G9VZ8QlLTDx+QfQAjquBhlFrbRdoIVNUBKt2EVmjwjZdVndnfuxx7OPDKB/PYil2XoL4VaEliT9FyxQnV8usdEACmBe5sAXo9A0mkhbK/i3VYOZVjvac9bk2k+EtEyrFegCLrL8HjfdiHcj2eyCBqmKFIn4kAigAvFixiffb19kDMkDV/n6Hf9m7ZAZJW6lJ8uBxfEi7AM4gCDniDPHy9EfcXI4HY9vUFWWCrHEr6Aq7zXGin68Sx7G5Oj878hhMQ2H7JnCLWp/pOiPe2cQ2rE1j/kFLFdTzXhJR/K9oPx3+h0QIDAQAB
@@ -154,14 +159,13 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuevHUr57tn1484nOQH48mtxc7KcauhYIbQsE
     data_slice[offset..offset + public_key.len()].copy_from_slice(public_key.as_bytes());
 
 
-    let klappt = device.save_object(1, data_slice);
+    let klappt = device.save_object(RETIRED_SLOT[0], data_slice);
 
 }
 
 fn load_object(device: &mut YubiKey) {
     
-    let data = device.fetch_object(1);
-    println!("{:?}", data);
+    let data = device.fetch_object(RETIRED_SLOT[0]);
     let mut output:Vec<u8> = Vec::new();
     match data {
         Ok(data) => {
