@@ -158,7 +158,7 @@ impl Provider for YubiKeyProvider {
             }
 
         } else {
-
+ 
             match self.key_usage {
                 SignEncrypt => match self.key_algorithm {
                     "Rsa" => {
@@ -301,7 +301,7 @@ impl Provider for YubiKeyProvider {
 
     fn get_free_slot() -> Resul<SlotId, error::Error> {
         for i in 10..19 {
-            let data = device.fetch_object(RETIRED_SLOT[i]);
+            let data = device.fetch_object(SLOTS[i]);
             let mut output:Vec<u8> = Vec::new();
             match data {
                 Ok(data) => {
@@ -319,7 +319,7 @@ impl Provider for YubiKeyProvider {
                     continue;                
                 }
                 Err(_) => {
-                    RETIRED_SLOT[i-10]
+                    SLOT[i-10]
                 }
             }
     
@@ -349,7 +349,7 @@ impl Provider for YubiKeyProvider {
 
     let mut found = false;
     for i in 10..19 {
-        let data = device.fetch_object(RETIRED_SLOT[i]);
+        let data = device.fetch_object(SLOT[i]);
         let mut output:Vec<u8> = Vec::new();
         match data {
             Ok(data) => {
@@ -365,7 +365,7 @@ impl Provider for YubiKeyProvider {
         match parse_slot_data(&data) {
             Ok((key_name, slot, usage, public_key)) => {
                 if key_name == self.key_id {
-                    self.slot_id = RETIRED_SLOT[i-10];
+                    self.slot_id = SLOT[i-10];
                     self.key_usage = match usage.as_str() {
                         "sign" | "encrypt" => KeyUsage::SignEncrypt,
                         "decrypt" => KeyUsage::Decrypt,
