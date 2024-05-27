@@ -26,6 +26,7 @@ pub struct YubiKeyProvider {
     pub(super) key_algorithm: AsymmetricEncryption,
     pub(super) hash: Option<Hash>,
     pub(super) key_usages: Option<Vec<KeyUsage>>,
+    
     // Add fields here specific to YubiKey implementation
 }
 
