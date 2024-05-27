@@ -29,7 +29,7 @@ const SLOTS: [u32; 20] = [
 /// This implementation interacts with a YubiKey device for key management and cryptographic
 /// operations.
 impl Provider for YubiKeyProvider {
-    /// Creates a new cryptographic key identified by `key_id`.
+    /// Creates a new cryptographic key identified by the provider given key_id.
     ///
     /// This method creates a persisted cryptographic key using the specified algorithm
     /// and identifier, making it retrievable for future operations. The key is created
@@ -37,18 +37,15 @@ impl Provider for YubiKeyProvider {
     ///
     /// # Arguments
     ///
-    /// * `key_id` - A string slice that uniquely identifies the key to be created.
-    /// * `config` - A boxed `ProviderConfig` containing configuration details for the key.
     ///
     /// # Returns
     ///
-    /// A `Result` that, on success, contains `Ok(String)`, which represents the public key, indicating that the key was created successfully.
+    /// The generated Public Key will be stored in the Yubikey as Object with futher information
+    /// A `Result` that, on success, contains `Ok()`.
     /// On failure, it returns a `yubikey::Error`.
     #[instrument]
     fn create_key(
-        &mut self,
-        //key_id: &str, notwendig? self.key_id???
-        //config: Box<dyn ProviderConfig>,
+        &mut self
     ) -> Result<(), yubikey::Error> {
 
         let key_name = self.key_id;
@@ -247,6 +244,20 @@ impl Provider for YubiKeyProvider {
         OK(())
     }
 
+    /// Saves the key object to the YubiKey device.
+    ///
+    /// This method saves a object to the YubiKey device. The object is stored in a slot and represents
+    /// information about the key, such as the key name, slot, key usage, and public key. This information
+    /// belongs to a private key which is stored in a other Slot.
+    ///
+    /// # Arguments
+    /// 'usage' - The key usage of the key object to be stored.
+    ///
+    /// # Returns
+    ///
+    /// The saved Object will be stored in the Yubikey on a free Retired slot as Object with futher information
+    /// A `Result` that, on success, contains `Ok()`.
+    /// On failure, it returns a `yubikey::Error`.
     fn save_key_object(&mut self, usage: String) -> Result<(), yubikey::Error> {
 
         let key_name = self.key_id;
@@ -289,6 +300,20 @@ impl Provider for YubiKeyProvider {
     
     }
 
+
+    /// parses the u8 Data to different Key-Information Strings
+    ///
+    /// This method creates a persisted cryptographic key using the specified algorithm
+    /// and identifier, making it retrievable for future operations. The key is created
+    /// with the specified key usages and stored in the YubiKey.
+    ///
+    /// # Arguments
+    ///
+    ///
+    /// # Returns
+    ///
+    /// A `Result` that, on success, contains `Ok(key_name, slot, key_usage, public_key)` where the individual information is given.
+    /// On failure, it returns a `Utf8Error`.
     fn parse_slot_data(data: &[u8]) -> Result<(String, String, String, String), Utf8Error> {
         let parts: Vec<&[u8]> = data.split(|&x| x == 0).collect();
         let key_name = std::str::from_utf8(parts.get(0).ok_or(Utf8Error::from_bytes_without_nul(data))?)?.to_string();
@@ -299,6 +324,18 @@ impl Provider for YubiKeyProvider {
         Ok((key_name, slot, key_usage, public_key))
     }
 
+
+    /// Gets a free slot for storing a key object.
+    ///
+    /// This method goes through the available slots on the YubiKey and returns the first free slot
+    ///
+    /// # Arguments
+    ///
+    ///
+    /// # Returns
+    ///
+    /// A `Result` that, on failure, returns the first free slot.
+    /// On Success, it returns that no more free slots are available.
     fn get_free_slot() -> Resul<SlotId, error::Error> {
         for i in 10..19 {
             let data = device.fetch_object(SLOTS[i]);
@@ -324,7 +361,7 @@ impl Provider for YubiKeyProvider {
             }
     
         }
-        Err("No free slot available")
+        Ok("No free slot available")
     }
 
     /// Loads an existing cryptographic key identified by `key_id`.
