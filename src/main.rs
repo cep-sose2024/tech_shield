@@ -1,6 +1,8 @@
 use base64::{engine::general_purpose, Engine};
 use md5::{Digest, Md5};
-use openssl::pkey::Public;
+use openssl::ec::EcKey;
+use openssl::ecdsa::EcdsaSigRef;
+use openssl::pkey::{PKeyRef, Public};
 use openssl::rsa::{Padding, Rsa};
 use openssl::sign::Verifier;
 use openssl::{hash::MessageDigest, pkey::PKey};
@@ -8,6 +10,7 @@ use openssl::{pkey, sign};
 use ring::signature;
 use rsa::sha2;
 //use rsa::signature::Verifier;
+use rsa::pss;
 use sha2::Sha256;
 use x509_cert::der::{self, Encode};
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
@@ -41,17 +44,37 @@ fn menu() {
         println!("5. Verify Signature");
         println!("6. Show Metadata");
         println!("7. List Keys");
-        println!("8. End");
+        println!("8. Save Object");
+        println!("9. Load Object");
+        println!("10. End");
         println!("----------------------\n");
         let mut input = String::new();
         let _ = std::io::stdin().read_line(&mut input);
 
         match input.to_string().trim() {
             "1" => {
-                let cipher = AlgorithmId::Rsa2048;
-                let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
-                rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
-                println!("\n\nPEM-Key:\n\n{}", rsa_pub_key);
+                println!("1. for RSA 2048, 2. for ECC 256");
+                let mut cipher = String::new();
+                let _ = std::io::stdin().read_line(&mut cipher);
+
+                match cipher.to_string().trim() {
+                    "1" => {
+                        let cipher = AlgorithmId::Rsa2048;
+                        let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
+                        rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
+                        println!("\n\nPEM-Key:\n\n{}", rsa_pub_key);
+                    }
+                    "2" => {
+                        let cipher = AlgorithmId::EccP256;
+                        let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
+                        let ecc_pub_key =
+                            encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
+                        println!("\n\nECC-Key:\n\n{}", ecc_pub_key);
+                    }
+                    _ => {
+                        println!("\nUnknown Input!\n");
+                    }
+                }
             }
             "2" => {
                 encrypted = encrypt_rsa(rsa_pub_key.clone());
@@ -63,7 +86,7 @@ fn menu() {
                 sign(&mut yubikey);
             }
             "5" => {
-                if input_verify_signature() {
+                if input_verify_signature_ecc() {
                     println!("Signature is valid.");
                 } else {
                     println!("Signature is invalid.");
@@ -80,6 +103,12 @@ fn menu() {
                 println!("{:?}", list);
             }
             "8" => {
+                save_object(&mut yubikey);
+            }
+            "9" => {
+                load_object(&mut yubikey);
+            }
+            "10" => {
                 break;
             }
 
@@ -88,6 +117,91 @@ fn menu() {
             }
         }
     }
+}
+
+fn save_object(device: &mut YubiKey) {
+
+    println!("\nPlease enter the ID where to save: \n");
+    let mut id = String::new();
+    let _ = std::io::stdin().read_line(&mut id);
+    let parsed = id.parse::<u32>();
+    let mut output: u32;
+    match parsed {
+        Ok(out) => {output = out;}
+        Err(_) => {
+            println!("ID must be a number.");
+            return;
+        }
+    }
+
+    let key_name = "test";
+    let slot = "R1";
+    let public_key = "-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuevHUr57tn1484nOQH48mtxc7KcauhYIbQsEnA1G9VZ8QlLTDx+QfQAjquBhlFrbRdoIVNUBKt2EVmjwjZdVndnfuxx7OPDKB/PYil2XoL4VaEliT9FyxQnV8usdEACmBe5sAXo9A0mkhbK/i3VYOZVjvac9bk2k+EtEyrFegCLrL8HjfdiHcj2eyCBqmKFIn4kAigAvFixiffb19kDMkDV/n6Hf9m7ZAZJW6lJ8uBxfEi7AM4gCDniDPHy9EfcXI4HY9vUFWWCrHEr6Aq7zXGin68Sx7G5Oj878hhMQ2H7JnCLWp/pOiPe2cQ2rE1j/kFLFdTzXhJR/K9oPx3+h0QIDAQAB
+-----END PUBLIC KEY-----";
+    let key_usage = "sign";
+    
+    let total_length = key_name.len() + 1 + slot.len() + 1 + key_usage.len() + 1 + public_key.len();
+    let mut data = vec![0u8; total_length]; // Verwendung eines Vektors zur Initialisierung
+    let data_slice: &mut [u8] = &mut data;
+
+    // Kopieren der Daten in den Slice
+    let mut offset = 0;
+    data_slice[offset..offset + key_name.len()].copy_from_slice(key_name.as_bytes());
+    offset += key_name.len();
+    data_slice[offset] = 0;
+    offset += 1;
+
+    data_slice[offset..offset + slot.len()].copy_from_slice(slot.as_bytes());
+    offset += slot.len();
+    data_slice[offset] = 0;
+    offset += 1;
+
+    data_slice[offset..offset + key_usage.len()].copy_from_slice(key_usage.as_bytes());
+    offset += key_usage.len();
+    data_slice[offset] = 0;
+    offset += 1;
+
+    data_slice[offset..offset + public_key.len()].copy_from_slice(public_key.as_bytes());
+
+
+    device.save_object(output, data_slice);
+
+}
+
+fn load_object(device: &mut YubiKey) {
+    println!("\nPlease enter the ID where to load: \n");
+    let mut id = String::new();
+    let _ = std::io::stdin().read_line(&mut id);
+    let parsed = id.parse::<u32>();
+    let mut output: u32;
+    match parsed {
+        Ok(out) => {output = out;}
+        Err(_) => {
+            println!("ID must be a number.");
+            return;
+        }
+    }
+    
+    let data = device.fetch_object(output);
+    let output;
+    match data {
+        Ok(data) => {
+            
+        }
+        Err(err) => {
+            println!("Error: {:?}", err);
+        }
+    }
+
+
+    let data = &output;
+
+    let parts: Vec<&[u8]> = data.split(|&x| x == 0).collect();
+    let key_name = std::str::from_utf8(parts[0]).unwrap();
+    let slot = std::str::from_utf8(parts[1]).unwrap();
+    let key_usage = std::str::from_utf8(parts[2]).unwrap();
+    let public_key = std::str::from_utf8(parts[3]).unwrap();
 }
 
 #[warn(dead_code)]
@@ -141,17 +255,33 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
     padded_data
 }
 
-/*fn remove_pkcs1_padding(signature: &[u8], length: usize) -> Vec<u8> {
-    let total_length = signature.len(); // Gesamtlänge der Datenblockgröße für RSA2048
-    let padding_length = total_length - length;
+fn input_verify_signature_ecc() -> bool {
+    // Public Key
+    let ecc = "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtVB1xU4TnsQtkwyjjlbievbEM1P4j8a7ASQHYuxRZ7RPAbecYH/rZy8oxc9szz+w3GQmlAYkRcg2mJMgu3WEVg==\n-----END PUBLIC KEY-----";
 
-    if padding_length < total_length {
-        signature[padding_length..].to_vec()
-    } else {
-        Vec::new() // Leere Vektor zurückgeben, wenn die Berechnung fehlschlägt
-    }
+    let ecc = EcKey::public_key_from_pem(ecc.trim().as_bytes()).expect("Fehler");
+    let ecc = PKey::from_ec_key(ecc).expect("Fehler");
+    /*let ecc = EcKey::public_key_from_pem(ecc.trim().as_bytes())
+            .expect("failed to create RSA from public key PEM");
+        let key_pkey = ecc.ec_key.unwrap();
+    */
+    // Signatur als Base64
+    let signature = "MEUCIFOrea/ipZESd1RP1MJO7Sn8RSD4H5Z5ZiqKdxPyaTLMAiEA+7iu9YR23lyErrWF+q8SzKS5WrpdOxkj4AYENEf7UPg=";
+    let signature = general_purpose::STANDARD
+        .decode(signature.as_bytes())
+        .unwrap();
+    let signature_u8 = signature.as_slice();
+
+    // Msg
+    let raw = b"test";
+
+    let mut verifier =
+        Verifier::new(MessageDigest::sha256(), &ecc).expect("failed to create verifier");
+    verifier.update(raw).expect("failed to update verifier");
+    verifier
+        .verify(signature_u8)
+        .expect("failed to verify signature")
 }
-*/
 
 fn input_verify_signature() -> bool {
     /*
@@ -187,10 +317,8 @@ fn input_verify_signature() -> bool {
 
     // Public Key
     let rsa = "-----BEGIN PUBLIC KEY-----
-    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiOUaTrXUryBeLx6S8qpZa4Dg/y+HCmfKoGgC8P4DsYUo4x3nDnAPVMx9nkbJ8WDdFub03zwGLbvGNb/4IW9eEHCT21KgzNXcYd8WefWPZ4TWOpCx5R/ctrDOpIY3oK9mQCVaAbM9WZmFMRdTrdm1mMeKXwPTkh/NUS8JbZwsreQmRDWDs48QeHpsY+nPG1FpkCSDLDaADU/sWegBhyvZu30X0jTVA7orejD2yDG5qE9L90L5G64YsStGwxx/bn3K99RHutO+VRAVKXZMXJwnuVHIMceI3UR4A+v+eu1Ifpdstp4ElYkSs+893AjaOgsqMWZaekl7xTl2jOaL7CjyRQIDAQAB
------END PUBLIC KEY-----
-    
-    
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuevHUr57tn1484nOQH48mtxc7KcauhYIbQsEnA1G9VZ8QlLTDx+QfQAjquBhlFrbRdoIVNUBKt2EVmjwjZdVndnfuxx7OPDKB/PYil2XoL4VaEliT9FyxQnV8usdEACmBe5sAXo9A0mkhbK/i3VYOZVjvac9bk2k+EtEyrFegCLrL8HjfdiHcj2eyCBqmKFIn4kAigAvFixiffb19kDMkDV/n6Hf9m7ZAZJW6lJ8uBxfEi7AM4gCDniDPHy9EfcXI4HY9vUFWWCrHEr6Aq7zXGin68Sx7G5Oj878hhMQ2H7JnCLWp/pOiPe2cQ2rE1j/kFLFdTzXhJR/K9oPx3+h0QIDAQAB
+-----END PUBLIC KEY-----    
     "
     ;
 
@@ -217,7 +345,7 @@ fn input_verify_signature() -> bool {
         let signature_u8: &[u8] = &signature;
     */
     // Signatur als Base64
-    let signature = "bLqf0avoz9nZ0TJ88/gZare+Y+NqJHD9CBslICVCcQKMaB5Fnog/Xjj4A2NiINFzv46907F5pFObcWGmjfWhTg3ngUG2jK42v8YUUZyTvHulu/Ir0CKVB54EXnyWcjeEz3MMRZJPyqjteUBIB9cHWfmq5r0GPh99xdrqV/tm/8Nf+JpEXLmhpvHT/7gAR3rcFb/Od651DbvS6QXtX+fqmziBuLIH/V5PMAyEpCMlv+7wN/4/YXlWfINxZLp+Qbb219MRYK8CeMc+iqoKmdAO7wuVkokkRBw2nvFxDgT4gzf4l6tuDUcF0Tj5V1HbVuOWcrDvJmsImz8rF7Id48Ka9Q==";
+    let signature = "nKfoSn3+tIgup24MnIQ32VRXBvwuaAvMBEJr6JqGsXvqVQy7Pr3Ya2zST3OuvV9C8BBjH1BalvNodWH74sYpc9Vcjm76r9UqthxrzsIeYiO9TLleZv2NaOTfGk5syVHe8vWyiIOXAaGVGRuflWXbcytqj9oTun5mp9s78dt84e6DhA70BCM/k/sf0ZHFbHyytRba5jcyCtcEzrenLbE/jx/8jh7mp3nb2r5lS9N5Z55LR9zzwcbh8VyfYCbidfjcYWzxGdIJKIQhnYAIAl2Fu0qTWr90mvm4t5mm+ShplidkStQavuSuqyYTJZhVICM2sPGY0W68IlIr7VrQzjM76Q==";
     let signature = general_purpose::STANDARD
         .decode(signature.as_bytes())
         .unwrap();
@@ -281,13 +409,13 @@ fn sign(device: &mut YubiKey) {
 
     // Fehler im Padding selbst?
     // Padding wird zum Hash hinzugefügt
-    let padded_data = apply_pkcs1v15_padding(hashed_u8, 256);
-    println!("{:?}", padded_data);
-    let padded_u8: &[u8] = &padded_data;
+    //    let padded_data = apply_pkcs1v15_padding(hashed_u8, 256);
+    //    println!("{:?}", padded_data);
+    //    let padded_u8: &[u8] = &padded_data;
 
     // wenn ich das auskommentiere, wird selbe Signatur erzeugt -> Es wird nicht automatisch neuer Key generiert
     // new key for signing in Signature-Slot
-    let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::KeyManagement);
+    let generated_key = gen_key(device, AlgorithmId::EccP256, SlotId::Signature);
     //  let formatted_key = format_key(generated_key);
     let rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
     println!("\n\nPEM-Key:\n\n{}", rsa_pub_key);
@@ -299,9 +427,9 @@ fn sign(device: &mut YubiKey) {
     // Signatur durchführen
     let signature = piv::sign_data(
         device,
-        padded_u8,
-        piv::AlgorithmId::Rsa2048,
-        piv::SlotId::KeyManagement,
+        hashed_u8,
+        piv::AlgorithmId::EccP256,
+        piv::SlotId::Signature,
     );
 
     match signature {
