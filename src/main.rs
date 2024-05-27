@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose, Engine};
-use der::Encode;
+use der::{asn1, oid::ObjectIdentifier, Decode, Encode, Error};
 use md5::{Digest, Md5};
 use openssl::rsa::{Padding, Rsa};
 use openssl::sign::Verifier as RSAVerifier;
@@ -12,7 +12,22 @@ use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
+const SIGNATURE_SLOT: u32 = 0x005f_c10b;
+const AUTHENTICATION_SLOT: u32 = 0x005f_c105;
+const RETIRED_SLOT: [u32; 20] = [
+    0x005f_c10d, 0x005f_c10e, 0x005f_c10f, 0x005f_c110,
+    0x005f_c111, 0x005f_c112, 0x005f_c113, 0x005f_c114,
+    0x005f_c115, 0x005f_c116, 0x005f_c117, 0x005f_c118,
+    0x005f_c119, 0x005f_c11a, 0x005f_c11b, 0x005f_c11c,
+    0x005f_c11d, 0x005f_c11e, 0x005f_c11f, 0x005f_c120,
+];
+const SECURITY_OBJECT: u32 = 0x005f_c106;
+const DISCOVERY_OBJECT: u32 = 0x7e;
+const ATTESTATION: u32 = 0x005f_ff01;
 
+const MAX_KEYS: usize = RETIRED_SLOT.len();
+//irgend eine key-id länge
+const MAX_KEY_ID_LENGTH: usize = 20;
 fn main() {
     menu();
 }
@@ -85,6 +100,34 @@ fn menu() {
             }
         }
     }
+}
+
+
+
+
+fn get_oid(yubikey: &mut YubiKey, id: u8)->Result<u32, String>{
+    let addressbook = yubikey.fetch_object(DISCOVERY_OBJECT).unwrap().to_vec();
+    if let Some(index) = addressbook.iter().position(|&x| x== id){
+        Ok(index as u32)
+    }
+    else {
+        Err(String::from("ID not found"))
+    }
+}
+fn get_key(yubikey: &mut YubiKey, key_id: &str)->Result<(),Error>{
+    let oid = match get_oid(yubikey, key_id.as_bytes()[0]){
+        Ok(zahl)=>zahl,
+        Err(no_zahl)=>0_u32
+    };
+    let key = drop(fetch_key(yubikey, oid));
+    Ok((key))
+}
+fn fetch_key(yubikey: &mut YubiKey, oid: u32)->Vec<u8>{
+    let ausgelesen = yubikey.fetch_object(oid);
+    let key = ausgelesen.unwrap().to_vec();
+    //println!("\n\nKI: {:?}\n\n", ki);
+    //let ret= SubjectPublicKeyInfo::from_der(&ki);
+    return key;
 }
 
 fn verify_signature() {
