@@ -1,6 +1,6 @@
 #[cfg(test)]
 #[allow(unused_imports)]
-use crate::src::yubikey::mod;
+use super::*;
 use provider::YubikeyProvider;
 #[test]
 fn test_create_rsa_key() {
