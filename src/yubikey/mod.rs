@@ -24,7 +24,7 @@ pub struct YubiKeyProvider {
     pub(super) key_id: String,
     pub(super) yubikey: YubiKey,
     pub(super) key_algorithm: AsymmetricEncryption,
-    pub(super) key_usages: Option<Vec<KeyUsage>>,
+    pub(super) key_usage: Option<KeyUsage>,
     pub(super) slot_id: SlotId,
     pub(super) pkey: String,
 }
@@ -47,7 +47,7 @@ impl YubiKeyProvider {
             key_id,
             yubikey: None,
             key_algorithm: None,
-            key_usages: None,
+            key_usage: None,
             slot_id: None,
             pkey: None,
         }

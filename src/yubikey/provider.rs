@@ -15,6 +15,14 @@ use yubikey::Error;
 use yubikey::{piv::algorithm::AlgorithmId, piv::slot::SlotId, YubiKey};
 use super::YubiKeyProvider;
 
+const SLOTS: [u32; 20] = [
+    0x005f_c10d, 0x005f_c10e, 0x005f_c10f, 0x005f_c110,
+    0x005f_c111, 0x005f_c112, 0x005f_c113, 0x005f_c114,
+    0x005f_c115, 0x005f_c116, 0x005f_c117, 0x005f_c118,
+    0x005f_c119, 0x005f_c11a, 0x005f_c11b, 0x005f_c11c,
+    0x005f_c11d, 0x005f_c11e, 0x005f_c11f, 0x005f_c120,
+];
+
 
 /// Implements the `Provider` trait, providing cryptographic operations utilizing a YubiKey.
 ///
@@ -42,49 +50,283 @@ impl Provider for YubiKeyProvider {
         //key_id: &str, notwendig? self.key_id???
         //config: Box<dyn ProviderConfig>,
     ) -> Result<(), yubikey::Error> {
-        match self.key_usage {
-            "SignEncrypt" => match self.key_algorithm {
-                "Rsa" => {
-                    let gen_key = piv::generate(
-                        self.yubikey,
-                        // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
-                        SlotId::KeyManagement,
-                        AlgorithmId::RSA2048,
-                        yubikey::PinPolicy::Default,
-                        yubikey::TouchPolicy::Default,
-                    );
-                    match gen_key {
-                        Ok(()) => {
-                            gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
-                            gen_key = general_purpose::STANDARD.encode(&gen_key);
-                            gen_key = format!(
-                                "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-                                gen_key.trim()
-                            );
-                            self.pkey = gen_key;
-                            
-                        }
-                        Err(err) => return Err(Error::KeyError),
-                    }
-                }
-                "Ecc" => {
-                    let gen_key = piv::generate(
-                        self.yubikey,
-                        // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
-                        SlotId::Signature,
-                        AlgorithmId::EccP256,
-                        yubikey::PinPolicy::Default,
-                        yubikey::TouchPolicy::Default,
-                    );
-                    self.pkey = gen_key;
-                  
-                }
-                "_" => Err(Error::NotSupported("Algorithm not supported")),
-            },
 
-            "_" => Err(Error::NotSupported("KeyUsage not supported")),
+        let key_name = self.key_id;
+        let mut usage = String::new();
+
+        if !load_key().is_ok() {
+            match self.key_usage {
+                "SignEncrypt" => match self.key_algorithm {
+                    "Rsa" => {
+                        match get_free_slot() {
+                            Ok(free) => {
+                                self.slot_id = free;
+                            }
+                            Err(err) => {
+                                return Err(err);
+                            }
+                        }
+                        usage = "encrypt";
+                        let gen_key = piv::generate(
+                            self.yubikey,
+                            // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
+                            SlotId::KeyManagement,
+                            AlgorithmId::RSA2048,
+                            yubikey::PinPolicy::Default,
+                            yubikey::TouchPolicy::Default,
+                        );
+                        match gen_key {
+                            Ok(()) => {
+                                gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
+                                gen_key = general_purpose::STANDARD.encode(&gen_key);
+                                gen_key = format!(
+                                    "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+                                    gen_key.trim()
+                                );
+                                self.pkey = gen_key;
+                                
+                            },
+                            Err(err) => return Err(Error::KeyError),
+                        }
+                    }
+                    "Ecc" => {
+                        match get_free_slot() {
+                            Ok(free) => {
+                                self.slot_id = free;
+                            }
+                            Err(err) => {
+                                return Err(err);
+                            }
+                        }
+                        usage = "sign";
+                        let gen_key = piv::generate(
+                            self.yubikey,
+                            // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
+                            SlotId::Signature,
+                            AlgorithmId::EccP256,
+                            yubikey::PinPolicy::Default,
+                            yubikey::TouchPolicy::Default,
+                        );
+                        self.pkey = gen_key;
+                      
+                    }
+                    "_" => Err(Error::NotSupported("Algorithm not supported")),
+                },
+
+                "Decrypt" => {
+                    match self.key_algorithm {
+                        "Rsa" => {
+                            match get_free_slot() {
+                                Ok(free) => {
+                                    self.slot_id = free;
+                                }
+                                Err(err) => {
+                                    return Err(err);
+                                }
+                            }
+                            usage = "decrypt";
+                            let gen_key = piv::generate(
+                                self.yubikey,
+                                // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
+                                SlotId::KeyManagement,
+                                AlgorithmId::RSA2048,
+                                yubikey::PinPolicy::Default,
+                                yubikey::TouchPolicy::Default,
+                            );
+                            match gen_key {
+                                Ok(()) => {
+                                    gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
+                                    gen_key = general_purpose::STANDARD.encode(&gen_key);
+                                    gen_key = format!(
+                                        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+                                        gen_key.trim()
+                                    );
+                                    self.pkey = gen_key;
+                                    
+                                },
+                                Err(err) => return Err(Error::KeyError),
+                            }
+                        }
+                        "Ecc" => {
+                            // TODO, not tested, might work
+                        }
+                        "_" => Error::NotSupported,
+                    }
+                },
+    
+                "_" => Err(Error::NotSupported("KeyUsage not supported")),
+            }
+
+        } else {
+
+            match self.key_usage {
+                "SignEncrypt" => match self.key_algorithm {
+                    "Rsa" => {
+                        slot = self.slot_id;
+                        usage = "encrypt";
+                        let gen_key = piv::generate(
+                            self.yubikey,
+                            // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
+                            SlotId::KeyManagement,
+                            AlgorithmId::RSA2048,
+                            yubikey::PinPolicy::Default,
+                            yubikey::TouchPolicy::Default,
+                        );
+                        match gen_key {
+                            Ok(()) => {
+                                gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
+                                gen_key = general_purpose::STANDARD.encode(&gen_key);
+                                gen_key = format!(
+                                    "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+                                    gen_key.trim()
+                                );
+                                self.pkey = gen_key;
+                                
+                            },
+                            Err(err) => return Err(Error::KeyError),
+                        }
+                    }
+                    "Ecc" => {
+                        slot = self.slot_id;
+                        usage = "sign";
+                        let gen_key = piv::generate(
+                            self.yubikey,
+                            // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
+                            SlotId::Signature,
+                            AlgorithmId::EccP256,
+                            yubikey::PinPolicy::Default,
+                            yubikey::TouchPolicy::Default,
+                        );
+                        self.pkey = gen_key;
+                      
+                    }
+                    "_" => Err(Error::NotSupported("Algorithm not supported")),
+                },
+
+                "Decrypt" => {
+                    match self.key_algorithm {
+                        "Rsa" => {
+                            slot = self.slot_id;
+                            usage = "decrypt";
+                            let gen_key = piv::generate(
+                                self.yubikey,
+                                // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
+                                SlotId::KeyManagement,
+                                AlgorithmId::RSA2048,
+                                yubikey::PinPolicy::Default,
+                                yubikey::TouchPolicy::Default,
+                            );
+                            match gen_key {
+                                Ok(()) => {
+                                    gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
+                                    gen_key = general_purpose::STANDARD.encode(&gen_key);
+                                    gen_key = format!(
+                                        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+                                        gen_key.trim()
+                                    );
+                                    self.pkey = gen_key;
+                                    
+                                },
+                                Err(err) => return Err(Error::KeyError),
+                            }
+                        }
+                        "Ecc" => {
+                            // TODO, not tested, might work
+                        }
+                        "_" => Error::NotSupported,
+                    }
+                },
+    
+                "_" => Err(Error::NotSupported("KeyUsage not supported")),
+            }
+
         }
+
+        save_key_object(usage);
+
+        OK(())
     }
+
+    fn save_key_object(&mut self, usage: String) -> Result<(), yubikey::Error> {
+
+        let key_name = self.key_id;
+        let slot = self.slot_id.to_string();
+        let public_key = self.pkey;
+        let key_usage = usage;
+        
+        let total_length = key_name.len() + 1 + slot.len() + 1 + key_usage.len() + 1 + public_key.len();
+        let mut data = vec![0u8; total_length]; 
+        let data_slice: &mut [u8] = &mut data;
+    
+        let mut offset = 0;
+        data_slice[offset..offset + key_name.len()].copy_from_slice(key_name.as_bytes());
+        offset += key_name.len();
+        data_slice[offset] = 0;
+        offset += 1;
+    
+        data_slice[offset..offset + slot.len()].copy_from_slice(slot.as_bytes());
+        offset += slot.len();
+        data_slice[offset] = 0;
+        offset += 1;
+    
+        data_slice[offset..offset + key_usage.len()].copy_from_slice(key_usage.as_bytes());
+        offset += key_usage.len();
+        data_slice[offset] = 0;
+        offset += 1;
+    
+        data_slice[offset..offset + public_key.len()].copy_from_slice(public_key.as_bytes());
+    
+    
+        let saved = device.save_object(self.slot_id, data_slice);
+        match saved {
+            Ok(()) => {
+                Ok(())
+            }
+            Err(err) => {
+                error::Error;
+            }
+        }
+    
+    }
+
+    fn parse_slot_data(data: &[u8]) -> Result<(String, String, String, String), Utf8Error> {
+        let parts: Vec<&[u8]> = data.split(|&x| x == 0).collect();
+        let key_name = std::str::from_utf8(parts.get(0).ok_or(Utf8Error::from_bytes_without_nul(data))?)?.to_string();
+        let slot = std::str::from_utf8(parts.get(1).ok_or(Utf8Error::from_bytes_without_nul(data))?)?.to_string();
+        let usage = std::str::from_utf8(parts.get(2).ok_or(Utf8Error::from_bytes_without_nul(data))?)?.to_string();
+        let public_key = std::str::from_utf8(parts.get(3).ok_or(Utf8Error::from_bytes_without_nul(data))?)?.to_string();
+    
+        Ok((key_name, slot, key_usage, public_key))
+    }
+
+    fn get_free_slot() -> Resul<SlotId, error::Error> {
+        for i in 10..19 {
+            let data = device.fetch_object(RETIRED_SLOT[i]);
+            let mut output:Vec<u8> = Vec::new();
+            match data {
+                Ok(data) => {
+                    output = data.to_vec();
+                }
+                Err(err) => {
+                    println!("Error: {:?}", err);
+                }
+            }
+    
+    
+            let data = output;
+            match parse_slot_data(&data) {
+                Ok(()) => {
+                    continue;                
+                }
+                Err(_) => {
+                    RETIRED_SLOT[i-10]
+                }
+            }
+    
+        }
+        Err("No free slot available")
+    }
+
     /// Loads an existing cryptographic key identified by `key_id`.
     ///
     /// This method attempts to load a persisted cryptographic key by its identifier from the YubiKey.
@@ -103,11 +345,51 @@ impl Provider for YubiKeyProvider {
     #[instrument]
     fn load_key(
         &mut self,
-        key_id: &str,
-        config: Box<dyn ProviderConfig>,
     ) -> Result<(), yubikey::Error> {
-        // Method implementation goes here
-        return Err(Error::NotImplemented);
+
+    let mut found = false;
+    for i in 10..19 {
+        let data = device.fetch_object(RETIRED_SLOT[i]);
+        let mut output:Vec<u8> = Vec::new();
+        match data {
+            Ok(data) => {
+                output = data.to_vec();
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+            }
+        }
+
+
+        let data = output;
+        match parse_slot_data(&data) {
+            Ok((key_name, slot, usage, public_key)) => {
+                if key_name == self.key_id {
+                    self.slot_id = RETIRED_SLOT[i-10];
+                    self.key_usage = match usage.as_str() {
+                        "sign" | "encrypt" => KeyUsage::SignEncrypt,
+                        "decrypt" => KeyUsage::Decrypt,
+                        _ => continue,
+                    };
+                    self.pkey = public_key;
+                    found = true;
+                    break;
+                }
+            
+            }
+            Err(e) => {
+                println!("Error parsing slot data: {:?}", e);
+                continue; // Gehe zur nächsten Iteration, wenn ein Fehler beim Parsen auftritt
+            }
+        }
+
+    }
+
+    if !found {
+        return Err(yubikey::Error::NotFound);
+    }
+
+    Ok(())
     }
 
     /// Initializes the YubiKey module and returns a handle for cryptographic operations.
