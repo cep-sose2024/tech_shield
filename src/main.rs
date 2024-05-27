@@ -1,358 +1,409 @@
-use asn1_der::typed::DerEncodable;
+use std::{f32::consts::E, io::Read, u32};
+
 use base64::{engine::general_purpose, Engine};
-use base64::engine::Config;
-use der::Encode;
+use der::{asn1, oid::ObjectIdentifier, Decode, Encode, Error};
+use picky_asn1::wrapper::ObjectIdentifierAsn1;
+use picky_asn1_der::Asn1RawDer;
+use x509_cert::spki::{SubjectPublicKeyInfo, SubjectPublicKeyInfoOwned};
+use yubikey::{piv::{self, sign_data, AlgorithmId, Key, SlotId}, MgmKey, ObjectId, YubiKey};
+//use pem::parse;
+extern crate base64;
+extern crate picky_asn1;
+extern crate picky_asn1_der;
+extern crate zeroize;
+use zeroize::{Zeroize, Zeroizing};
+use spki::SubjectPublicKeyInfo as leo;
+use rsa::{RsaPrivateKey, BigUint};
+//use crypto_layer;
 
-use pad::PadStr;
-use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
-use yubikey::{
-    piv::{self, AlgorithmId, Key, SlotId},
-    MgmKey, YubiKey,
-};
-//markus branch
-/*
-extern crate ring;
-use ring::signature::{RsaPublicKeyComponents, RSA_PUBLIC_KEY_PUBLIC_MODULUS_POSITIVE_FLAG};
-use ring::signature::KeyPair;
-use ring::signature::RSA_PUBLIC_KEY_PUBLIC_EXPONENT_VALUE;
- */
+//use picky_asn1::wrapper::ObjectIdentifierAsn1;
+//use picky_asn1_der::Asn1Der;
+//use picky_asn1_der::Asn1RawDer;
+
+extern crate pkcs8;
+
+const SIGNATURE_SLOT: u32 = 0x005f_c10b;
+const AUTHENTICATION_SLOT: u32 = 0x005f_c105;
+const RETIRED_SLOT: [u32; 20] = [
+    0x005f_c10d, 0x005f_c10e, 0x005f_c10f, 0x005f_c110,
+    0x005f_c111, 0x005f_c112, 0x005f_c113, 0x005f_c114,
+    0x005f_c115, 0x005f_c116, 0x005f_c117, 0x005f_c118,
+    0x005f_c119, 0x005f_c11a, 0x005f_c11b, 0x005f_c11c,
+    0x005f_c11d, 0x005f_c11e, 0x005f_c11f, 0x005f_c120,
+];
+const SECURITY_OBJECT: u32 = 0x005f_c106;
+const DISCOVERY_OBJECT: u32 = 0x7e;
+const ATTESTATION: u32 = 0x005f_ff01;
+
+const MAX_KEYS: usize = RETIRED_SLOT.len();
+//irgend eine key-id länge
+const MAX_KEY_ID_LENGTH: usize = 20;
+//#####################################################
 fn main() {
-    menu();
-}
-
-fn menu() {
-    let yubikey = open_device();
-
-    let pin = pin_eingabe();
-    let mut yubikey = verify_pin(pin, yubikey);
-
-    let _ = yubikey.authenticate(MgmKey::default());
-
-    loop {
-        println!("\n----------------------");
-        println!("1. Generate Key");
-        println!("2. Decrypt");
-        println!("3. Show Metadata");
-        println!("4. List Keys");
-        println!("5. Sign Data");
-        println!("6. End");
-        println!("----------------------\n");
-        let mut input = String::new();
-        let _ = std::io::stdin().read_line(&mut input);
-
-        match input.to_string().trim() {
-            "1" => {
-                let cipher = AlgorithmId::Rsa2048;
-                let generated_key = gen_key(&mut yubikey, cipher, SlotId::KeyManagement);
-                println!("schlüsselchen: {:?}",encode_key(generated_key.as_ref().unwrap().to_der().unwrap()));
-                let formatted_key = format_key(generated_key);
-                encode_key(formatted_key);
-            }
-            "2" => {
-                decr_data(&mut yubikey);
-            }
-            "3" => {
-                println!(
-                    "{:?}",
-                    yubikey::piv::metadata(&mut yubikey, piv::SlotId::KeyManagement)
-                )
-            }
-            "4" => {
-                let list = Key::list(&mut yubikey);
-                println!("{:?}", list);
-            }
-            "5" => {
-                sign(&mut yubikey);
-            }
-            "6" => {
-                break;
-            }
-            _ => {
-                println!("\nUnknown Input!\n");
-            }
-        }
-    }
-}
-
-fn sign(device: &mut YubiKey) {
-    println!("\nPlease enter the data to sign: \n");
-    let data = String::new();
-    let _ = std::io::stdin().read_line(&mut data.pad_to_width(245));
-    let data = data.trim();
-    let data = data.as_bytes();
-
-    // new key for signing in Signature-Slot
-    let generated_key = gen_key(device, AlgorithmId::Rsa2048, SlotId::Signature);
-    let formatted_key = format_key(generated_key);
-    encode_key(formatted_key);
-
-    let signature = piv::sign_data(
-        device,
-        data,
-        piv::AlgorithmId::Rsa2048,
-        piv::SlotId::Signature,
-    );
-    match signature {
-        Ok(buffer) => {
-            let string = String::from_utf8_lossy(&buffer);
-            println!("\nSignature (lossy): \n{}", string);
-        }
-        Err(err) => println!("\nFailed to sign: \n{:?}", err),
-    }
-}
-
-fn decr_data(device: &mut YubiKey) {
-    println!("\nPlease enter the encrypted data: \n");
-    let mut encrypted = String::new();
-    let _ = std::io::stdin().read_line(&mut encrypted);
-    let encrypted_bytes = encrypted.trim_end().as_bytes();
-    let encrypted_bytes_decoded = general_purpose::STANDARD.decode(encrypted_bytes).unwrap();
-    let input: &[u8] = &encrypted_bytes_decoded;
-    //    println!("{:?}", encrypted_bytes);
-    let decrypted = piv::decrypt_data(
-        device,
-        input,
-        piv::AlgorithmId::Rsa2048,
-        piv::SlotId::KeyManagement,
-    );
-    match decrypted {
-        Ok(buffer) => {
-            let string = String::from_utf8_lossy(&buffer);
-            println!("\nDecrypted (lossy): \n{}", string);
-        }
-        Err(err) => println!("\nFailed to decrypt: \n{:?}", err),
-    }
-}
-
-// Key aus SubjectPublicKeyInfoOwned extrahieren, damit es weiter verarbeitet werden kann
-fn format_key(generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> Vec<u8> {
-    if let Ok(key_info) = generated_key {
-        //     certify(&mut device, generated_key);
-        let value = key_info.subject_public_key;
-        let bytes = BitString::as_bytes(&value).unwrap();
-        return bytes.to_vec();
-    }
-    println!("Fehler beim Zugriff auf den öffentlichen Schlüssel.");
-    Vec::new() // Gib einen leeren Vektor zurück, wenn ein Fehler auftritt
-}
-use ring::signature;
-use ring::signature::RsaPublicKeyComponents;
-
-// Key in PEM und base64 konvertieren
-fn encode_key(key: Vec<u8>) {
-    // KEy in Base64 umwandeln
-    println!("erstmal: {:?}",&key);
-    //let key_b64_new = format!("-----BEGIN PUBLIC KEY-----\n{:?}\n-----END PUBLIC KEY-----", key);
-    let key_b64 = general_purpose::STANDARD.encode(&key);
-   // let key_b64_new = format!("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A{:?}", key_b64);
-    println!("\nIst das der einzigwahre Public Key?: \n\n{}", key_b64);
-//    let bipo = key.encode();
-  //  println!("hieeroooooagaopeihgpoihpo: {:?}", bipo);
-    /*    let pem = Pem::new("PUBLIC KEY", key);
-        let pem_key = encode(&pem);
-        println!("\nPEM-Key:{:?}", pem_key);
-        let mut pem_key_new = pem_key.replace("\r", "");
-        pem_key_new = pem_key_new.replace("\n", "");
-        println!("\n New: {:?}", pem_key_new);
-
-        let mut keys: Vec<String> = Vec::new();
-        keys.push(pem_key);
-        keys.push(pem_key_new);
-
-        return keys;
-    */
-}
-
-fn open_device() -> YubiKey {
-    loop {
-        println!("Please connect your Yubikey and press Enter.");
-        let mut input = String::new();
-        let _ = std::io::stdin().read_line(&mut input);
-        let yubikey = YubiKey::open();
-        if yubikey.is_ok() {
-            return yubikey.unwrap();
-        } else {
-            println!("No Yubikey found, please try again!\n\n")
-        }
-    }
-}
-
-fn pin_eingabe() -> String {
-    println!("Please insert your 6-figures PIN:\n");
-    let mut eingabe = String::new();
-    let _ = std::io::stdin().read_line(&mut eingabe);
-    let eingabe = eingabe.trim(); // Entfernen von Whitespace und Newline-Zeichen
-    if eingabe == "123456" {
-        println!("\nPlease change your standard PIN.\n");
-    }
-    eingabe.to_string() // RÃ¼ckgabe des bereinigten Strings
-}
-
-fn verify_pin(pin: String, mut device: YubiKey) -> YubiKey {
-    let verify = device.verify_pin(pin.as_ref());
-    if verify.is_ok() {
-        println!("Login successful.");
-        return device;
-    } else {
-        println!("Pin incorrect.");
-        let count = device.get_pin_retries().unwrap();
-        loop {
-            println!("Please enter your PIN again.");
-            let mut input = String::new();
-            let _ = std::io::stdin().read_line(&mut input);
-            let input = input.trim(); // Entfernen von Whitespace und Newline-Zeichen
-            let ver = device.verify_pin(input.as_ref());
-            if ver.is_ok() {
-                println!("Login successful.");
-                return device;
-            }
-            if count == 0 {
-                println!("PUK is required. Please enter you 8-figures PUK:");
-                let mut puk = String::new();
-                let _ = std::io::stdin().read_line(&mut puk);
-                let puk = puk.trim(); // Entfernen von Whitespace und Newline-Zeichen
-                println!("Please enter your new PIN:");
-                let mut pin_neu = String::new();
-                let _ = std::io::stdin().read_line(&mut pin_neu);
-                let pin_neu = pin_neu.trim(); // Entfernen von Whitespace und Newline-Zeichen
-                let change_puk = device.unblock_pin(puk.as_ref(), pin_neu.as_ref());
-                if change_puk.is_ok() {
-                    println!("PIN changed successfully.");
-                    println!("Login Successful.");
-                    return device;
-                }
-            }
-        }
-    }
-}
-
-pub fn get_slot_list(device: &mut YubiKey) {
-    let slot_list = Key::list(device);
-    // let slot = slot_list.unwrap().slot();
-    // println!("Slotliste {:?}", slot_list);
-    for slot in &slot_list {
-        println!("Iteration");
-        println!("\nSlot Liste: {:?}", slot);
-    }
-}
-
-pub fn gen_key(
-    device: &mut YubiKey,
-    cipher: AlgorithmId,
-    slot: piv::SlotId,
-) -> Result<SubjectPublicKeyInfoOwned, yubikey::Error> {
-    let gen_key = piv::generate(
-        device,
-        slot,
-        cipher,
-        yubikey::PinPolicy::Default,
-        yubikey::TouchPolicy::Never,
-    );
-    use asn1_der::{
-        DerObject,
-        typed::{ DerEncodable, DerDecodable }
+    let mut yubikey =  match open_device(){
+        Ok(yubikey)=>yubikey,
+        Err(e)=> {println!("{}",e); return;},
     };
-    //let gen_key= export_rsa_public_key(&gen_key);
-    let key_bytes = gen_key.as_ref();
-//****************
-    let mut index =0;
-    let subject_public_key_info: Vec<u8>=gen_key.as_ref().unwrap().to_der().unwrap();
-    while index < subject_public_key_info.len()-1{
-        if subject_public_key_info[index] == 0x03 && subject_public_key_info[index+1]&0x80 ==0{
-            index +=2;
-            let length_byte = subject_public_key_info[index]as usize;
-            index+=1;
-            let subject_public_key_start = index;
-            let subject_ppublic_key_length = length_byte;
-            let subject_public_key = &subject_public_key_info[subject_public_key_start..(subject_public_key_start + subject_ppublic_key_length)];
-            let subject_public_key_base64 = base64::encode(subject_public_key);
-            println!("feeeeeeeeeeeeeeeertig: \n{}\n\n", subject_public_key_base64);
+    yubikey.authenticate(MgmKey::default());
+    ///*
+    //let gen_key = gen_key(&mut yubikey, piv::SlotId::Authentication, piv::AlgorithmId::Rsa2048);
+    //println!("nicht formattiert: {:?}\n\n", &gen_key);
+    //println!("formattiert: {}\n\n",format_key(gen_key));
+    //let raw_in = "hohle birne hole bier ne? alla hopp, hoio arbeitszeiten rsa encryption projektsteuerung rsa decryption enter dencrypted text to base64(aga) dashborad startseite anmelden am asch maps youtube gmail devglan com enter public / private key bytebyteb";
+    //let raw_in = raw_in.as_bytes();
+    //let signiert = piv::sign_data(&mut yubikey, raw_in, piv::AlgorithmId::Rsa2048, piv::SlotId::Authentication);
+    //println!("signiert: {:?}", signiert);
+
+    /*////////
+    let genn_key = gen_key.unwrap().to_der().as_ref().unwrap().to_vec();
+    save_key(&mut yubikey, RETIRED_SLOT[0], genn_key);
+    */////////
+
+
+
+    //test rausholen
+    ///*
+    //clear_slot(&mut yubikey, None);
+    println!("geckleared\n\n");
+    for i in 0..20{
+        println!("\nslot {i}: ");
+        print!(" {:?}\n",yubikey.fetch_object(RETIRED_SLOT[i]));
+    }
+
+    println!("\nanfang: {:?}\n",gen_key(&mut yubikey, "omega".to_string(), piv::AlgorithmId::Rsa2048));
+    let dada = fetch_key(&mut yubikey, AUTHENTICATION_SLOT);
+    println!("Private Key: {:?}\n", dada);
+    let dodo = fetch_key(&mut yubikey, RETIRED_SLOT[0]);
+    println!("Public  Key: {:?}\n", dodo);
+
+    /*
+    let base64_encoded = base64::encode(dodo);
+    let pem_string = format!("-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----\n", base64_encoded);
+    println!("pem: \n{}\n",pem_string);
+
+    let base64_encoded = base64::encode(dada);
+    let pem_string = format!("-----BEGIN Private KEY-----\n{}\n-----END Private KEY-----\n", base64_encoded);
+    println!("pem: \n{}\n",pem_string);
+    */
+    //println!("fetched: {:?}\n\n", format_key(Ok(dada)));
+    //*/
+    /*
+        //test decrypt
+        let encr_data = String::from("snsqtzqdXGfMyQfJCX4LZO6OPCxyWt4aY99IYtgm0GASYYMxf1lH3pyNrQ02MZ6pndiwHXlTCJDVdewF+312d1/Ou8szL+VZBzPbiAEN86HkfAaNF1dBVN+2zjCqVjO34TWSlcnhRgB51xOUx0V3LkRmLTTZjfbd8xQV6D/i9dDLuWOMBrM5LE69D0PGAH7uxdjrU5JDrUdgmMI5DleEo+ZHLqJMtofol0uhz17a4qtqbQa/I/WWgajP6sw4vtbMkHsAgle5jym548fmgMssH/Dmy09mDzNZM4LUUuL+1n9h7uaZbm60ZbILnu51LiKIIb0iwbRp3NYvQ1nwWylGOw==");
+        let encr_data = encr_data.as_bytes();
+        let decr_msg = decr_data(&mut yubikey, piv::SlotId::Authentication, piv::AlgorithmId::Rsa2048, encr_data);
+        println!("decrypted: {:?}",decr_msg);
+    */
+
+    //*/
+    //println!("{}",decr_data(&mut yubikey, piv::SlotId::Authentication, piv::AlgorithmId::Rsa2048, data));
+    /*
+    let uu = yubikey.fetch_object(AUTHENTICATION_SLOT);
+    let uu = uu.unwrap().to_vec();
+    let hex: String = uu.iter().map(|b| format!("{:04X}", b)).collect();
+    let b64 = general_purpose::STANDARD.encode(&hex);
+    println!("inhalt: {:?}\n\n",b64);
+    */
+    /*
+    let data = vec![('c') as u8 ].to_vec();
+    println!("signed {:?}", sign_datas(&mut yubikey, &data, piv::AlgorithmId::Rsa2048, piv::SlotId::Authentication));
+
+    let message = b"Hello Markus";
+    let signa = sign_datas(&mut yubikey, message, piv::AlgorithmId::Rsa2048, piv::SlotId::Authentication);
+    println!("signiert {:?}", signa);
+    */
+    println!("fertig");
+
+}
+
+//fn load_key(&mut self, key_id: &str, key_algorithm: Asymmetric Encryption, sym_algorithm: Option<BlockCiphers>, hash: Option<Hash>, key_usages: Vec<KeyUsage>)->Result<(), SecurityModuleError>{}
+/*let key = fetch_key(yubikey, oid );
+    let key = key.to_der();
+    let key = drop(key); */
+fn get_key(yubikey: &mut YubiKey, key_id: &str)->Result<(),Error>{
+    let oid = match get_oid(yubikey, key_id.as_bytes()[0]){
+        Ok(zahl)=>zahl,
+        Err(no_zahl)=>0_u32
+    };
+    let key = drop(fetch_key(yubikey, oid));
+    Ok((key))
+}
+fn get_oid(yubikey: &mut YubiKey, id: u8)->Result<u32, String>{
+    let addressbook = yubikey.fetch_object(DISCOVERY_OBJECT).unwrap().to_vec();
+    if let Some(index) = addressbook.iter().position(|&x| x== id){
+        Ok(index as u32)
+    }
+    else {
+        Err(String::from("ID not found"))
+    }
+}
+
+fn clear_slot(yubikey: &mut YubiKey, slot: Option<u32>){
+    match slot{
+        Some(address)=>{
+            remv(address);
+        },
+        None=>{
+            for address in RETIRED_SLOT{
+                remv(address);
+            }
+        }
+    }
+}
+fn write_addressbook(yubikey: &mut YubiKey, mut data: Vec<u8>){
+    yubikey.save_object(DISCOVERY_OBJECT, &mut data);
+}
+
+fn remv(address: u32){
+    let ptr = address as *mut u8;
+    unsafe{
+        std::ptr::write_bytes(ptr, 0, std::mem::size_of::<u8>());
+    }
+}
+
+fn choose_slot(yubikey: &mut YubiKey)->u32{
+    for i in 0..MAX_KEYS{
+        if yubikey.fetch_object(RETIRED_SLOT[i]).unwrap().to_vec().is_empty(){
+            return RETIRED_SLOT[i];
+        }
+    };
+    clear_slot(yubikey, None);
+    let mut new_addressbook: Vec<u8> = vec![0; 20];
+    let new_addressbook_slice: &mut [u8] = &mut &mut new_addressbook[..];
+    write_addressbook(yubikey, new_addressbook_slice.to_vec());
+    RETIRED_SLOT[0]
+}
+
+fn save_key(yubikey: &mut YubiKey, id: String , mut key: Vec<u8>){
+    //let mut keyy = key.to_vec();
+    let id_as_bytes: &[u8] = id.as_bytes();
+    let mut addressbook = yubikey.fetch_object(DISCOVERY_OBJECT).unwrap().to_vec();
+    let mut i =0;
+    loop {
+        if addressbook[i] == 0{
             break;
         }
-        else {
-            index+=1;
-        }
-
+        i += 1;
     }
-    /*
-    let subject_public_key: Vec<u8>=vec![];
-    let subject_public_key_base64 = base64::encode(&subject_public_key);
-    println!("{}",subject_public_key_base64);
-*/
-    //let parsed_key = u8::decode(key_bytes).expect("uppppsala");
-    /*let zwischen = format_key(&gen_key);
-    let key_b64 = general_purpose::STANDARD.encode(zwischen);
-    println!("hooooollllaa {:#?}", key_b64);
-    */
+    let dest:u32 = RETIRED_SLOT[i];
+    yubikey.save_object(dest,&mut key);
+}
+/* fn move_key(yubikey: &mut YubiKey, src:u32, dest:u32)->bool{
+    let key = yubikey.fetch_object(src);
 
+    //yubikey.save_object(key_as_vec, indata);
+
+    return true;
+}*/
+
+//Result<SubjectPublicKeyInfoOwned, der::Error>
+fn fetch_key(yubikey: &mut YubiKey, oid: u32)->Vec<u8>{
+    let ausgelesen = yubikey.fetch_object(oid);
+    let key = ausgelesen.unwrap().to_vec();
+    //println!("\n\nKI: {:?}\n\n", ki);
+    //let ret= SubjectPublicKeyInfo::from_der(&ki);
+    return key;
+}
+/* fn build_private_key(bytes: Zeroizing<Vec<u8>>) -> Result<PrivateKey, Error> {
+    // Extrahiere die einzelnen Teile des privaten Schlüssels aus dem Byte-Array
+    // Beispiel: Modul, privater Exponent, öffentlicher Exponent, ...
+    let modulus = BigUint::from_bytes_be(&bytes[2..130]);
+    let private_exponent = BigUint::from_bytes_be(&bytes[134..266]);
+    let public_exponent = BigUint::from_bytes_be(&bytes[270..274]);
+
+    // Konstruiere den privaten Schlüssel aus den extrahierten Teilen
+    let private_key = RsaPrivateKey::from_components(modulus, private_exponent)?;
+
+    Ok(private_key)
+}*/
+
+
+//->Vec<u8>
+fn sign_datas(yubikey: &mut YubiKey, data:&[u8] , algorithm:piv::AlgorithmId, slot:piv::SlotId)->Result<Zeroizing<Vec<u8>>, yubikey::Error>{
+    let signature = piv::sign_data(yubikey,
+                                   data,
+                                   algorithm,
+                                   slot);
+    // let ret = signature.unwrap().as_slice().to_vec();
+    // let ret = signature.unwrap().to_vec();
+    return signature;
+}
+
+/*
+let a = vec![0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+let b = &a; // b: &Vec<u8>
+let c: &[u8] = &a; // c: &[u8]
+ */
+// Vec<u8>
+fn decr_data(yubikey: &mut YubiKey, slot:piv::SlotId, algorithm:piv::AlgorithmId, encr_data: &[u8]) ->Zeroizing<Vec<u8>>{
+    let decrypted_data = piv::decrypt_data(yubikey, encr_data, algorithm, slot).unwrap();
+    return decrypted_data;
+}
+
+fn format_key(gen_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>) -> String {
+    //es wäre auch STANDRAD_NO_PAD möglich
+    general_purpose::STANDARD.encode(gen_key.as_ref().unwrap().to_der().unwrap())
+}
+
+fn gen_key(yubikey:&mut YubiKey, key_id: String, algorithm:piv::AlgorithmId ) -> Result<SubjectPublicKeyInfoOwned, yubikey::Error>{
+
+    let key_id_as_bytes: &[u8] = key_id.as_bytes();
+    let mut addressbook = yubikey.fetch_object(DISCOVERY_OBJECT).unwrap().to_vec();
+    let mut i =0;
+    loop {
+        if addressbook[i] == 0{
+            break;
+        }
+        i += 1;
+    }
+    addressbook[i]=key_id_as_bytes[0];
+
+    i+=1;
+    let slot = match i {
+        1 => piv::SlotId::Retired(piv::RetiredSlotId::R1),
+        2 => piv::SlotId::Retired(piv::RetiredSlotId::R2),
+        3 => piv::SlotId::Retired(piv::RetiredSlotId::R3),
+        4 => piv::SlotId::Retired(piv::RetiredSlotId::R4),
+        5 => piv::SlotId::Retired(piv::RetiredSlotId::R5),
+        6 => piv::SlotId::Retired(piv::RetiredSlotId::R6),
+        7 => piv::SlotId::Retired(piv::RetiredSlotId::R7),
+        8 => piv::SlotId::Retired(piv::RetiredSlotId::R8),
+        9 => piv::SlotId::Retired(piv::RetiredSlotId::R9),
+        10 => piv::SlotId::Retired(piv::RetiredSlotId::R10),
+        11 => piv::SlotId::Retired(piv::RetiredSlotId::R11),
+        12 => piv::SlotId::Retired(piv::RetiredSlotId::R12),
+        13 => piv::SlotId::Retired(piv::RetiredSlotId::R13),
+        14 => piv::SlotId::Retired(piv::RetiredSlotId::R14),
+        15 => piv::SlotId::Retired(piv::RetiredSlotId::R15),
+        16 => piv::SlotId::Retired(piv::RetiredSlotId::R16),
+        17 => piv::SlotId::Retired(piv::RetiredSlotId::R17),
+        18 => piv::SlotId::Retired(piv::RetiredSlotId::R18),
+        19 => piv::SlotId::Retired(piv::RetiredSlotId::R19),
+        20 => piv::SlotId::Retired(piv::RetiredSlotId::R20),
+        _ =>piv::SlotId::Signature
+    };
+
+    let gen_key = piv::generate(
+        yubikey,
+        slot,
+        algorithm,
+        yubikey::PinPolicy::Never,
+        yubikey::TouchPolicy::Never);
+    //bearbeiten
     return gen_key;
 }
+
+fn open_device() -> Result<YubiKey, String>{
+    let yubikey = YubiKey::open();
+    if yubikey.is_ok(){
+        Ok(yubikey.unwrap())
+    } else {
+        Err(String::from("No YubiKey device was found."))
+    }
+}
 /*
-fn export_rsa_public_key(public_key: &PivRsaPublicKey) -> Result<String, Box<dyn std::error::Error>> {
-    // Konvertiere Modulus und Exponent in RSA-Struktur
-    let rsa_public_key_components = RsaPublicKeyComponents {
-        n: &public_key.modulus,
-        e: &public_key.public_exponent,
-    };
-
-    // Erstelle den RSA-Public Key
-    let rsa_public_key = ring::signature::RSAKeyPairComponents::from_components(&rsa_public_key_components)?;
-
-    // Exportiere den RSA-Public Key im Subject Public Key Info Format
-    let mut encoded_key = Vec::new();
-    rsa_public_key.encode_pkcs8_unencrypted_pkcs1(&mut encoded_key)?;
-
-    // Base64-Kodiere den exportierten Schlüssel
-    let b64_encoded_key = base64::encode_config(&encoded_key, base64::STANDARD);
-
-    Ok(b64_encoded_key)
+#[derive(Asn1Der)]
+struct AlgorithmIdentifier{
+    algorithm: ObjectIdentifierAsn1,
+    parameters: Option<Asn1RawDer>
+}
+#[derive(Asn1Der)]
+struct SubjectPublicKeyInfo{
+    algorithm: AlgorithmIdentifier,
+    subject_public_key: Asn1RawDer
 }*/
-// Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
-/* pub fn certify(
-    device: &mut YubiKey,
-    generated_key: Result<SubjectPublicKeyInfoOwned, yubikey::Error>,
-) {
-    let ser = device.serial();
-    let x_ser = x509_cert::serial_number::SerialNumber::new(ser.to_string().as_bytes());
-    let time = x509_cert::time::Validity::from_now(Duration::MAX);
-    //   let extensions: &[x509_cert::ext::Extension] = &[];
-    let gen_key_unwrapped = generated_key.unwrap();
-    let subject = create_rdn();
-    let extensions: &[x509_cert::ext::Extension] = &[];
 
-    let gen_cert = certificate::Certificate::generate_self_signed(
-        device,
-        piv::SlotId::KeyManagement,
-        x_ser.unwrap(),
-        time.unwrap(),
-        subject,
-        gen_key_unwrapped,
-        extensions,
-    );
+//++++++++++++++++++++++++++++++temporär
+/*
+struct SecurityModule {
+    keys: Vec<Key>
+}
+struct KeyKey {
+    id: String,
+    algorithm: AsymmetricEncryption,
+    sym_algorithm: Option<BlockCiphers>,
+    hash: Option<Hash>,
+    usages: Vec<KeyUsage>,
+}
+impl SecurityModule{
+    pub fn load_key(
+        &mut self,
+        key_id: &str,
+        key_algorithm: AsymmetricEncryption,
+        sym_algorithm: Option<BlockCiphers>,
+        hash: Option<Hash>,
+        key_usages: Vec<KeyUsage>,
+    ) -> Result<(), SecurityModuleError> {
+        // Überprüfen, ob der Schlüssel bereits existiert
+        if self.keys.iter().any(|key| key.id == key_id) {
+            return Err(SecurityModuleError::KeyAlreadyExists);
+        }
+
+        // Erstellen des neuen Schlüssels
+        let new_key = KeyKey {
+            id: key_id.to_string(),
+            algorithm: key_algorithm,
+            sym_algorithm,
+            hash,
+            usages: key_usages,
+        };
+
+        // Hinzufügen des neuen Schlüssels zur Liste der Schlüssel
+        self.keys.push(new_key);
+
+        Ok(())
+    }
+}
+// Beispiel für die Definition von SecurityModuleError
+#[derive(Debug)]
+enum SecurityModuleError {
+    KeyAlreadyExists,
+    // Weitere Fehlerfälle hier hinzufügen
 }
 
-// Subject erstellen für generate_self_signed
-pub fn create_rdn() -> RdnSequence {
-    let vec: Vec<RdnSequence> = Vec::new();
-    let set: SetOfVec<AttributeTypeAndValue> = SetOfVec::new();
+// Beispiel für die Definition der AsymmetricEncryption, BlockCiphers, Hash, KeyUsage
+enum AsymmetricEncryption {
+    RSA,
+    ECDSA,
+    // Weitere Algorithmen hier hinzufügen
+}
 
-    let oid_cn = ObjectIdentifier::new("2.5.4.3").unwrap();
-    let name_byte = "Jannis".as_bytes();
-    let name_box = Box::new(name_byte);
-    let cn_value = AttributeValue::new(der::Tag::Utf8String, name_box).unwrap();
+enum BlockCiphers {
+    AES,
+    DES,
+    // Weitere Algorithmen hier hinzufügen
+}
 
-    let cn = format!(
-        "oid: {},
-        value: {},",
-        oid_cn.to_string(),
-        cn_value
-    );
+enum Hash {
+    SHA256,
+    SHA512,
+    // Weitere Algorithmen hier hinzufügen
+}
 
-    let test = RdnSequence::from_str(&cn);
-    match test {
-        Ok(handle) => println!("Erfolgreich: {:?}", handle),
-        Err(err) => println!("Failed: {:?}", err),
-    };
-    return test.unwrap();
+enum KeyUsage {
+    Encrypt,
+    Decrypt,
+    Sign,
+    Verify,
+    // Weitere Nutzungen hier hinzufügen
+}
+fn testen(){
+    let mut sec = SecurityModule{keys: Vec::new()};
+    match sec.load_key("key1",
+    AsymmetricEncryption::RSA,
+    Some(BlockCiphers::AES),
+    Some(Hash::SHA256),
+    vec![KeyUsage::Encrypt, KeyUsage::Sign]){
+        Ok(())=>println!("Hat funktioniert"),
+        Err(e)=> println!("Hat nicht funktioniert, ups {:?}",e)
+    }
 }
 */
+//----------------------------------temporär
+/*fn load_key(yubikey: &mut YubiKey, key_id: &str, key_algorithm: AsymmetricEncryption, sym_algorithm: Option<BlockCiphers>, hash: Option<Hash>, key_usages: Vec<KeyUsage>)->Result<(),SecurityModuleError>{
+return
+} */
+
+/*let mut indata = gen_key.clone().unwrap().to_der().unwrap();
+        let mut indata = indata.as_mut_slice();
+        yubikey.save_object(RETIRED_SLOT[0], &mut indata); */

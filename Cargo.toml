@@ -6,15 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-yubikey = { version = "0.8.0", features = ["untested"] }
+yubikey = { versioin = "0.8.0", features = ["untested"]}
 x509-cert = "0.2.5"
-serde_json = "1.0.116"
-serde = "1.0.199"
 pem = "3.0.4"
 base64 = "0.22.1"
-const-oid = "0.9.6"
-encoding_rs = "0.8.34"
-pad = "0.1.6"
-ring = "0.17.8"
 der = "0.7.9"
-asn1_der = "0.7.6"
+picky-asn1 = "0.8.0"
+picky-asn1-der = "0.4.1"
+zeroize = "1.7.0"
+#crypto_layer = { git = https://github.com/nmshd/rust-crypto.git, branch = "main"}
+pkcs8 = "0.10.2"
+spki = "0.7.3"
+rsa = "0.9.6"
