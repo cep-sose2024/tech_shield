@@ -1,3 +1,5 @@
+use std::error;
+use std::str::Utf8Error;
 use base64::{engine::general_purpose, Engine};
 use der::{asn1, oid::ObjectIdentifier, Decode, Encode, Error};
 use md5::{Digest, Md5};
@@ -12,22 +14,64 @@ use yubikey::{
     piv::{self, AlgorithmId, Key, SlotId},
     MgmKey, YubiKey,
 };
+use log::error;
+use openssl::x509::extension::KeyUsage;
+use yubikey::piv::RetiredSlotId;
+
 const SIGNATURE_SLOT: u32 = 0x005f_c10b;
 const AUTHENTICATION_SLOT: u32 = 0x005f_c105;
-const RETIRED_SLOT: [u32; 20] = [
-    0x005f_c10d, 0x005f_c10e, 0x005f_c10f, 0x005f_c110,
-    0x005f_c111, 0x005f_c112, 0x005f_c113, 0x005f_c114,
-    0x005f_c115, 0x005f_c116, 0x005f_c117, 0x005f_c118,
-    0x005f_c119, 0x005f_c11a, 0x005f_c11b, 0x005f_c11c,
-    0x005f_c11d, 0x005f_c11e, 0x005f_c11f, 0x005f_c120,
+const SLOTS: [RetiredSlotId; 20] = [
+    piv::RetiredSlotId::R1,
+    piv::RetiredSlotId::R2,
+    piv::RetiredSlotId::R3,
+    piv::RetiredSlotId::R4,
+    piv::RetiredSlotId::R5,
+    piv::RetiredSlotId::R6,
+    piv::RetiredSlotId::R7,
+    piv::RetiredSlotId::R8,
+    piv::RetiredSlotId::R9,
+    piv::RetiredSlotId::R10,
+    piv::RetiredSlotId::R11,
+    piv::RetiredSlotId::R12,
+    piv::RetiredSlotId::R13,
+    piv::RetiredSlotId::R14,
+    piv::RetiredSlotId::R15,
+    piv::RetiredSlotId::R16,
+    piv::RetiredSlotId::R17,
+    piv::RetiredSlotId::R18,
+    piv::RetiredSlotId::R19,
+    piv::RetiredSlotId::R20,
+];
+
+const SLOTSU32: [u32; 20] = [
+    0x005f_c10d,
+    0x005f_c10e,
+    0x005f_c10f,
+    0x005f_c110,
+    0x005f_c111,
+    0x005f_c112,
+    0x005f_c113,
+    0x005f_c114,
+    0x005f_c115,
+    0x005f_c116,
+    0x005f_c117,
+    0x005f_c118,
+    0x005f_c119,
+    0x005f_c11a,
+    0x005f_c11b,
+    0x005f_c11c,
+    0x005f_c11d,
+    0x005f_c11e,
+    0x005f_c11f,
+    0x005f_c120,
 ];
 const SECURITY_OBJECT: u32 = 0x005f_c106;
 const DISCOVERY_OBJECT: u32 = 0x7e;
 const ATTESTATION: u32 = 0x005f_ff01;
 
-const MAX_KEYS: usize = RETIRED_SLOT.len();
+//const MAX_KEYS: usize = RETIRED_SLOT.len();
 //irgend eine key-id länge
-const MAX_KEY_ID_LENGTH: usize = 20;
+//const MAX_KEY_ID_LENGTH: usize = 20;
 fn main() {
     menu();
 }
@@ -54,6 +98,7 @@ fn menu() {
         println!("6. Show Metadata");
         println!("7. List Keys");
         println!("8. End");
+        println!("9. load_key");
         println!("----------------------\n");
         let mut input = String::new();
         let _ = std::io::stdin().read_line(&mut input);
@@ -94,7 +139,12 @@ fn menu() {
             "8" => {
                 break;
             }
-
+            "9" => {
+                let mut inbad = String::new();
+                let _ = std::io::stdin().read_line(&mut inbad);
+                let res = load_key(&mut yubikey, inbad.to_string().trim()).unwrap();
+                println!("Load key: {:?}", res);
+            }
             _ => {
                 println!("\nUnknown Input!\n");
             }
@@ -103,7 +153,83 @@ fn menu() {
 }
 
 
+fn load_key(
+    yubikey: &mut YubiKey,
+    key_id: &str,
+) -> Result<(), Error> {
+    //let mut yubikey = yubikey.unwrap().lock().unwrap();
+    let mut found = false;
+    for i in 10..19 {
+        let data = yubikey.fetch_object(SLOTSU32[i]);
+        let mut output: Vec<u8> = Vec::new();
+        match data {
+            Ok(data) => {
+                output = data.to_vec();
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+            }
+        }
 
+        let data = output;
+        match parse_slot_data(&data) {
+            Ok((key_name, slot, usage, public_key)) => {
+                if key_name == key_id {
+                    let mut vector = Vec::new();
+                    let slot_id = Some(SLOTS[i - 10]);
+                    let key_usages = match usage.as_str() {
+                        "sign" | "encrypt" => {
+                            vector.push("sign|encrypt");
+                            Some(vector)
+                        }
+                        "decrypt" => {
+                            vector.push("decrypt");
+                            Some(vector)
+                        }
+                        _ => continue,
+                    };
+                    let pkey = public_key;
+                    found = true;
+                    break;
+                }
+            }
+            Err(e) => {
+                println!("Error parsing slot data: {:?}", e);
+                continue;
+            }
+        }
+    }
+
+    if !found {
+        return Err(Error::from(Utf8Error::from(std::str::from_utf8(&[]).unwrap_err())));
+    }
+
+    Ok(())
+}
+
+fn parse_slot_data(data: &[u8]) -> Result<(String, String, String, String), Utf8Error> {
+    let parts: Vec<&[u8]> = data.split(|&x| x == 0).collect();
+    if !(parts.len() < 4
+        || parts[0].is_empty()
+        || parts[1].is_empty()
+        || parts[2].is_empty()
+        || parts[3].is_empty())
+    {
+        let key_name = std::str::from_utf8(parts[0]).unwrap();
+        let slot = std::str::from_utf8(parts[1]).unwrap();
+        let usage = std::str::from_utf8(parts[2]).unwrap();
+        let public_key = std::str::from_utf8(parts[3]).unwrap();
+
+        Ok((
+            key_name.to_string(),
+            slot.to_string(),
+            usage.to_string(),
+            public_key.to_string(),
+        ))
+    } else {
+        Err(Utf8Error::from(std::str::from_utf8(&[]).unwrap_err()))
+    }
+}
 
 fn get_oid(yubikey: &mut YubiKey, id: u8)->Result<u32, String>{
     let addressbook = yubikey.fetch_object(DISCOVERY_OBJECT).unwrap().to_vec();

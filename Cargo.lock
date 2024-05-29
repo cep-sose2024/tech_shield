@@ -773,6 +773,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "der",
+ "log",
  "md-5",
  "openssl",
  "ring",
