@@ -16,6 +16,27 @@ Our goal is to provice a user-friendly and secure way to access the functionalit
 - Provides functions for data encryption and decryption.
 - Implements security mechanisms to ensure the confidentiality and integrity of data.
 
+## Installation:
+
+**In order for our solution to work, it is required that OpenSSL has been installed successfully.**
+
+### Windows
+[Download OpenSSL for Windows](https://www.heise.de/download/product/win32-openssl-47316/download/danke?id=eb9acc71-f52c-4329-a3cf-cf9bd9172d8c)
+
+Make sure to set the environment variables correctly, e.g.: 
+
+```sh
+setx OPENSSL_DIR "C:\Program Files\OpenSSL-Win64"
+setx OPENSSL_INCLUDE_DIR "C:\Program Files\OpenSSL-Win64\include"
+setx OPENSSL_LIB_DIR "C:\Program Files\OpenSSL-Win64\lib"
+```
+
+### Linux
+
+```
+sudo apt-get install libssl-dev
+```
+
 ## Usage:
 
 (under construction)
