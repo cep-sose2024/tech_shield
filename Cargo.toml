@@ -23,3 +23,7 @@ serde = { version = "1.0.199", features = ["derive"] }
 tracing = "0.1.40"
 openssl = "0.10.64"
 sha2 = "0.10.8"
+signature = "2.2.0"
+md5 = "0.7.0"
+ring = "0.17.8"
+log = "0.4.21"
