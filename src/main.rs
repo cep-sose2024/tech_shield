@@ -8,10 +8,11 @@ use openssl::sign::Verifier;
 use openssl::{hash::MessageDigest, pkey::PKey};
 use openssl::{pkey, sign};
 use ring::signature;
-use rsa::sha2;
+use rsa::sha2::Sha256;
 //use rsa::signature::Verifier;
+use openssl::hash::Hasher;
+use openssl::rand::rand_bytes;
 use rsa::pss;
-use sha2::Sha256;
 use x509_cert::der::{self, Encode};
 use x509_cert::{der::asn1::BitString, spki::SubjectPublicKeyInfoOwned};
 use yubikey::{
@@ -84,7 +85,7 @@ fn menu() {
                 sign(&mut yubikey);
             }
             "5" => {
-                if input_verify_signature_ecc() {
+                if input_verify_signature() {
                     println!("Signature is valid.");
                 } else {
                     println!("Signature is invalid.");
@@ -151,20 +152,6 @@ fn verify_signature() {
     }
 }
 
-fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
-    let padding_length = block_size - data.len() - 3;
-    let mut padded_data = Vec::with_capacity(block_size);
-    padded_data.push(0x00);
-    padded_data.push(0x01);
-    for _ in 0..padding_length {
-        padded_data.push(0xFF);
-    }
-    padded_data.push(0x00);
-    padded_data.extend_from_slice(data);
-    //println!("{:?}", padded_data);
-    padded_data
-}
-
 fn input_verify_signature_ecc() -> bool {
     // Public Key
     let ecc = "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtVB1xU4TnsQtkwyjjlbievbEM1P4j8a7ASQHYuxRZ7RPAbecYH/rZy8oxc9szz+w3GQmlAYkRcg2mJMgu3WEVg==\n-----END PUBLIC KEY-----";
@@ -226,10 +213,7 @@ fn input_verify_signature() -> bool {
     ///////////////////////////////////////////////
 
     // Public Key
-    let rsa = "-----BEGIN PUBLIC KEY-----
-    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuevHUr57tn1484nOQH48mtxc7KcauhYIbQsEnA1G9VZ8QlLTDx+QfQAjquBhlFrbRdoIVNUBKt2EVmjwjZdVndnfuxx7OPDKB/PYil2XoL4VaEliT9FyxQnV8usdEACmBe5sAXo9A0mkhbK/i3VYOZVjvac9bk2k+EtEyrFegCLrL8HjfdiHcj2eyCBqmKFIn4kAigAvFixiffb19kDMkDV/n6Hf9m7ZAZJW6lJ8uBxfEi7AM4gCDniDPHy9EfcXI4HY9vUFWWCrHEr6Aq7zXGin68Sx7G5Oj878hhMQ2H7JnCLWp/pOiPe2cQ2rE1j/kFLFdTzXhJR/K9oPx3+h0QIDAQAB
------END PUBLIC KEY-----    
-    "
+    let rsa = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA30UmyPw94KwB9FRHh6O56dDMazfA7+fTyS6wxQNXlepjhhnhxOGq5UtH/7LAMyNo0HOso4XNHA8gPna+AsZ4f5TmCdVNBARL+Ei/XPfPhAt3ouLRxc7K17t+f7E/ulQf9dzok1g7wYkCF7u0uacSANoHzB8H45OMUGo4Himjtd2Ckxl8aqHwvVT6OB3k9f1l0ms+dNeYa6NQ7Ixv5esv/uUNGC2J7JhBtmgVmIFFFw7h0jPzpdFkiC6eNaa8FnY9n95A+zrwxoOKcHtYq7ZDeiMsCqEHpp5OqqctjTEzx/oDHUrzl144IykcmG2WRfYvE3bPfLxFA607nV4Ikxk3dwIDAQAB\n-----END PUBLIC KEY-----"
     ;
 
     let rsa = Rsa::public_key_from_pem(rsa.trim().as_bytes())
@@ -255,7 +239,7 @@ fn input_verify_signature() -> bool {
         let signature_u8: &[u8] = &signature;
     */
     // Signatur als Base64
-    let signature = "nKfoSn3+tIgup24MnIQ32VRXBvwuaAvMBEJr6JqGsXvqVQy7Pr3Ya2zST3OuvV9C8BBjH1BalvNodWH74sYpc9Vcjm76r9UqthxrzsIeYiO9TLleZv2NaOTfGk5syVHe8vWyiIOXAaGVGRuflWXbcytqj9oTun5mp9s78dt84e6DhA70BCM/k/sf0ZHFbHyytRba5jcyCtcEzrenLbE/jx/8jh7mp3nb2r5lS9N5Z55LR9zzwcbh8VyfYCbidfjcYWzxGdIJKIQhnYAIAl2Fu0qTWr90mvm4t5mm+ShplidkStQavuSuqyYTJZhVICM2sPGY0W68IlIr7VrQzjM76Q==";
+    let signature = "wXZUt/uzWd6xKEJLOuLIsfWUwR3x6MpT2KP/6Eg/WiXlIZvWNZbQ/hoUxYuUVY4jz28CjRJ3r8gs9PRsSV6fJqvt4+fpBYvbGOqA2WL0UJ3aO5we6bfzeGMAKNy+Q+CAFwWHNanTpUmwDCucHzdSobL7ZwpupR7YmnMFvpSDy5fEHGpzdisIvmJoUfUZNIbIOBRyi/3LxtrdN/0pmWlYD3a1LMwdSra4p2vOQXjlmqsMP2Svh6LezNFYuAom3qwciSul/r7oZFtBUU4f7MdY3+jGjUJwVxnHanLayOWjukBQbQE8rKJmJHswBufLM17rHhnLZcTAgYfgvgTN97SijA==";
     let signature = general_purpose::STANDARD
         .decode(signature.as_bytes())
         .unwrap();
@@ -300,6 +284,20 @@ fn hash_data(data: Vec<u8>, hash_algo: &str) -> Vec<u8> {
     }
 }
 
+fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
+    let padding_length = block_size - data.len() - 3;
+    let mut padded_data = Vec::with_capacity(block_size);
+    padded_data.push(0x00);
+    padded_data.push(0x01);
+    for _ in 0..padding_length {
+        padded_data.push(0xFF);
+    }
+    padded_data.push(0x00);
+    padded_data.extend_from_slice(data);
+    //println!("{:?}", padded_data);
+    padded_data
+}
+
 fn sign(device: &mut YubiKey) {
     println!("\nPlease enter the data to sign: \n");
     let mut data = String::new();
@@ -307,29 +305,34 @@ fn sign(device: &mut YubiKey) {
 
     // habe ich geprüft: Umwandlung findet richtig statt
     let data_vec = data.trim().as_bytes().to_vec();
-    println!("{:?}", data_vec);
+    // println!("{:?}", data_vec);
 
     // Hashing wird richtig ausgeführt
     // Input wird gehasht
     let hashed = hash_data(data_vec, "SHA256");
     let hashed_u8: &[u8] = &hashed;
 
-    println!("Hashed: {:?}", hashed_u8);
-    println!("Hex: {:?}", hex::encode(hashed_u8));
+    //  println!("Hashed: {:?}", hashed_u8);
+    //  println!("Hex: {:?}", hex::encode(hashed_u8));
 
     // Fehler im Padding selbst?
     // Padding wird zum Hash hinzugefügt
-    //    let padded_data = apply_pkcs1v15_padding(hashed_u8, 256);
-    //    println!("{:?}", padded_data);
-    //    let padded_u8: &[u8] = &padded_data;
+    let padded_data = apply_pkcs1_pss_padding(&hashed_u8, 256);
+    println!("{:?}", padded_data);
+    let padded_u8: &[u8] = &padded_data;
 
     // wenn ich das auskommentiere, wird selbe Signatur erzeugt -> Es wird nicht automatisch neuer Key generiert
     // new key for signing in Signature-Slot
-    let generated_key = gen_key(device, AlgorithmId::EccP256, SlotId::Signature);
-    //  let formatted_key = format_key(generated_key);
-    let rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
-    println!("\n\nPEM-Key:\n\n{}", rsa_pub_key);
+    /*   let generated_key = gen_key(
+            device,
+            AlgorithmId::Rsa2048,
+            SlotId::Retired(piv::RetiredSlotId::R1),
+        );
 
+        //  let formatted_key = format_key(generated_key);
+        let rsa_pub_key = encode_key(generated_key.as_ref().unwrap().to_der().unwrap());
+        println!("\n\nPEM-Key:\n\n{}", rsa_pub_key);
+    */
     //TODO richtige Pineingabe einfügen
     let _ = device.verify_pin("123456".as_ref());
     let _ = device.authenticate(MgmKey::default());
@@ -337,9 +340,9 @@ fn sign(device: &mut YubiKey) {
     // Signatur durchführen
     let signature = piv::sign_data(
         device,
-        hashed_u8,
-        piv::AlgorithmId::EccP256,
-        piv::SlotId::Signature,
+        padded_u8,
+        piv::AlgorithmId::Rsa2048,
+        piv::SlotId::Retired(piv::RetiredSlotId::R1),
     );
 
     match signature {
@@ -589,3 +592,71 @@ pub fn create_rdn() -> RdnSequence {
     return test.unwrap();
 }
 */
+
+fn apply_pkcs1_pss_padding(data: &[u8], block_size: usize) -> Vec<u8> {
+    // Hash die Eingabedaten
+    let mut hasher = Hasher::new(MessageDigest::sha256()).unwrap();
+    hasher.update(data).unwrap();
+    let hashed_data = hasher.finish().unwrap();
+
+    // Länge des Salzes
+    let salt_length = 32; // Typischerweise die gleiche Länge wie die Hash-Länge für SHA-256
+
+    // Erzeuge zufälligen Salz
+    let mut salt = vec![0u8; salt_length];
+    rand_bytes(&mut salt).unwrap();
+
+    // M' = (0x)00 00 00 00 00 00 00 00 || H || Salz
+    let mut m_prime = vec![0u8; 8];
+    m_prime.extend_from_slice(&hashed_data);
+    m_prime.extend_from_slice(&salt);
+
+    // H = Hash(M')
+    let mut hasher = Hasher::new(MessageDigest::sha256()).unwrap();
+    hasher.update(&m_prime).unwrap();
+    let h = hasher.finish().unwrap();
+
+    // Erzeuge PS
+    let ps_length = block_size - salt_length - h.len() - 2;
+    let mut ps = vec![0u8; ps_length];
+    ps.push(0x01);
+
+    // DB = PS || 0x01 || Salz
+    let mut db = Vec::new();
+    db.extend(ps);
+    db.extend(salt);
+
+    // MGF1, um DB zu maskieren
+    let mut masked_db = mgf1(&h, db.len());
+    for (i, byte) in db.iter().enumerate() {
+        masked_db[i] ^= byte;
+    }
+
+    // Setze die linkesten 8*8−emLen Bits des linkesten Oktetts in maskedDB auf null
+    let leading_zero_bits = 8 * (masked_db.len() - block_size + 1);
+    masked_db[0] &= 0xFF >> leading_zero_bits;
+
+    // Kodierte Nachricht EM = maskedDB || H || 0xbc
+    let mut em = masked_db;
+    em.extend(h);
+    em.push(0xbc);
+
+    em
+}
+
+fn mgf1(seed: &[u8], mask_len: usize) -> Vec<u8> {
+    let mut mask = Vec::new();
+    let mut counter = 0;
+    while mask.len() < mask_len {
+        let mut c = vec![0u8; 4];
+        c.copy_from_slice(&counter.to_be_bytes());
+        let mut hasher = Hasher::new(MessageDigest::sha256()).unwrap();
+        hasher.update(seed).unwrap();
+        hasher.update(&c).unwrap();
+        let hash = hasher.finish().unwrap();
+        mask.extend_from_slice(&hash);
+        counter += 1;
+    }
+    mask.truncate(mask_len);
+    mask
+}
