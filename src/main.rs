@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 use base64::{engine::general_purpose, Engine};
 use der::{asn1, oid::ObjectIdentifier, Decode, Encode, Error};
 use md5::{Digest};
-use tech_shield::common::crypto::algorithms::hashes::Hash::Md5;
 use openssl::rsa::{Padding, Rsa};
 use openssl::sign::Verifier as RSAVerifier;
 use openssl::{hash::MessageDigest, pkey::PKey};
@@ -20,12 +19,7 @@ use log::error;
 use openssl::x509::extension::KeyUsage;
 use yubikey::piv::AlgorithmId::Rsa2048;
 use yubikey::piv::{RetiredSlotId, SLOTS};
-use tech_shield::common::crypto::algorithms::encryption::{AsymmetricEncryption, BlockCiphers, SymmetricMode};
-use tech_shield::common::crypto::algorithms::hashes::{Hash, Sha2Bits};
-use tech_shield::common::crypto::algorithms::KeyBits;
-
-use tech_shield::common::factory::{SecurityModule};
-use tech_shield::common::traits::module_provider::Provider;
+use tech_shield::common::factory::{HsmType, SecurityModule};
 use tech_shield::hsm::core::instance::HsmType;
 use tech_shield::SecModules;
 
@@ -58,8 +52,9 @@ fn main() {
     println!("hallo");
     let key_id = "my_key_id".to_string();
     //let sec_module = SecModules::get_instance(key_id.clone(), SecurityModule::Hsm(HsmType::from("yubikey")), None);
-    let hsm_provider = tech_shield::SecModules::get_instance(key_id, sec_module, None);
-    match hsm_provider.unwrap().lock().unwrap().initialize_module(){
+    let hsm_provider =
+        SecModules::get_instance(key_id, SecurityModule::Hsm(HsmType::YubiKey), None).expect("Failed to create HSM provider");
+    match hsm_provider.lock().unwrap().initialize_module(){
         Ok(()) => println!("HSM module initialized successfully"),
         Err(e)=>println!("Failed to initialize HSM module: {:?}", e),
     }
@@ -67,7 +62,7 @@ fn main() {
     menu();
 }
 
-fn menu(){
+fn menu(){}
     /*
     let yubikey = open_device();
 
@@ -78,6 +73,7 @@ fn menu(){
     let mut rsa_pub_key = String::new();
     let mut encrypted = String::new();
     */
+    /*
     loop {
         let yubikey = open_device();
         let pin = pin_eingabe();
@@ -692,7 +688,7 @@ pub fn gen_key(
     );
     return gen_key;
 }
-
+*/
 // Versuch ein Zertifikat zum Schlüssel hinzuzufügen, in der Hoffnung dass er deshalb nicht funktioniert
 /* pub fn certify(
     device: &mut YubiKey,

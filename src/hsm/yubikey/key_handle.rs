@@ -1,7 +1,11 @@
 use super::YubiKeyProvider;
 use crate::{
     common::{
-        crypto::algorithms::encryption::AsymmetricEncryption, error::SecurityModuleError,
+        crypto::algorithms::{
+            encryption::{AsymmetricEncryption, EccCurves, EccSchemeAlgorithm},
+            KeyBits,
+        },
+        error::SecurityModuleError,
         traits::key_handle::KeyHandle,
     },
     hsm::core::error::HsmError,
@@ -12,7 +16,6 @@ use ::yubikey::{
     piv::{AlgorithmId, SlotId},
     MgmKey,
 };
-//use crate hsm::core::error::HsmError;
 use base64::{engine::general_purpose, Engine};
 use openssl::{
     ec::EcKey,
@@ -59,26 +62,26 @@ impl KeyHandle for YubiKeyProvider {
         //TODO After PIN input implementation in App, insert code for re-authentication
         let verify = yubikey.verify_pin("123456".as_ref());
         if !verify.is_ok() {
-            return Err(SecurityModuleError::InitializationError("ups".to_string()));
-            /*return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+            return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
                 "PIN verification failed".to_string(),
-
             )));
-
-             */
         }
         let auth = yubikey.authenticate(MgmKey::default());
         if !auth.is_ok() {
-            return Err(SecurityModuleError::InitializationError("ups".to_string()));
-            /*
             return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
                 "Authentication  failed".to_string(),
             )));
-
-             */
         }
         match key_algo {
-            AsymmetricEncryption::Ecc(_) => {
+            /*
+            AsymmetricEncryption::Rsa(KeyBits::Bits1024) => {
+                // TODO, doesn´t work yet
+            }
+            AsymmetricEncryption::Rsa(KeyBits::Bits2048) => {
+                // TODO, doesn´t work yet
+            }
+            */
+            AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDh(EccCurves::P256)) => {
                 // Sign data
                 let signature = piv::sign_data(
                     &mut yubikey,
@@ -94,14 +97,36 @@ impl KeyHandle for YubiKeyProvider {
                             .expect("Failed to decode signature");
                         Ok(signature)
                     }
-                    Err(err) => Err(SecurityModuleError::InitializationError("ups".to_string())),//Hsm(HsmError::DeviceSpecific(err.to_string(), ))),
+                    Err(err) => Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                        err.to_string(),
+                    ))),
                 }
             }
-            /*Rsa => {
-                // TODO, doesn´t work yet
-            }*/
+            AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDh(EccCurves::P384)) => {
+                // Sign data
+                let signature = piv::sign_data(
+                    &mut yubikey,
+                    data,
+                    AlgorithmId::EccP384,
+                    SlotId::Retired(self.slot_id.unwrap()),
+                );
+                match signature {
+                    Ok(buffer) => {
+                        let signature = general_purpose::STANDARD.encode(&buffer);
+                        let signature = general_purpose::STANDARD
+                            .decode(signature)
+                            .expect("Failed to decode signature");
+                        Ok(signature)
+                    }
+                    Err(err) => Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                        err.to_string(),
+                    ))),
+                }
+            }
             _ => {
-                return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::UnsupportedFeature("Unsupported feature".to_string(), )));
+                return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                    "Key Algorithm not supported".to_string(),
+                )));
             }
         }
     }
@@ -123,11 +148,20 @@ impl KeyHandle for YubiKeyProvider {
         let mut yubikey = yubikey.lock().unwrap();
         let encrypted_data = general_purpose::STANDARD.decode(encrypted_data).unwrap();
         let input: &[u8] = &encrypted_data;
-        let mut decrypted: Result<Zeroizing<Vec<u8>>, &str> = Ok(Zeroizing::new(Vec::new()));
+        let decrypted: Result<Zeroizing<Vec<u8>>, &str>;
         let key_algo = self.key_algo.unwrap();
 
         match key_algo {
-            AsymmetricEncryption::Rsa(_) => {
+            AsymmetricEncryption::Rsa(KeyBits::Bits1024) => {
+                decrypted = piv::decrypt_data(
+                    &mut yubikey,
+                    input,
+                    piv::AlgorithmId::Rsa1024,
+                    piv::SlotId::Retired(self.slot_id.unwrap()),
+                )
+                .map_err(|_| "Failed to decrypt data");
+            }
+            AsymmetricEncryption::Rsa(KeyBits::Bits2048) => {
                 decrypted = piv::decrypt_data(
                     &mut yubikey,
                     input,
@@ -136,8 +170,20 @@ impl KeyHandle for YubiKeyProvider {
                 )
                 .map_err(|_| "Failed to decrypt data");
             }
-            AsymmetricEncryption::Ecc(_) => {
-                // TODO, not tested, might work
+            // The Yubikey do not support decryption with ECC:
+            // https://docs.yubico.com/yesdk/users-manual/application-piv/apdu/auth-decrypt.html
+            /*
+            AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDh(EccCurves::P256)) => {
+
+            }
+            AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDh(EccCurves::P384)) => {
+
+            }
+            */
+            _ => {
+                return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                    "Key Algorithm not supported".to_string(),
+                )));
             }
         }
         fn remove_pkcs1_padding(buffer: &[u8]) -> Result<Vec<u8>, &'static str> {
@@ -161,11 +207,15 @@ impl KeyHandle for YubiKeyProvider {
                     return Ok(data);
                 }
                 Err(err) => {
-                    return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(crate::hsm::core::error::HsmError::DeviceSpecific(err.to_string()), ));
+                    return Err(SecurityModuleError::Hsm(
+                        crate::hsm::core::error::HsmError::DeviceSpecific(err.to_string()),
+                    ));
                 }
             },
             Err(err) => {
-                return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(crate::hsm::core::error::HsmError::DeviceSpecific(err.to_string()), ));
+                return Err(SecurityModuleError::Hsm(
+                    crate::hsm::core::error::HsmError::DeviceSpecific(err.to_string()),
+                ));
             }
         }
     }
@@ -185,7 +235,8 @@ impl KeyHandle for YubiKeyProvider {
     #[instrument]
     fn encrypt_data(&self, data: &[u8]) -> Result<Vec<u8>, SecurityModuleError> {
         match self.key_algo.unwrap() {
-            AsymmetricEncryption::Rsa(_) => {
+            AsymmetricEncryption::Rsa(KeyBits::Bits1024)
+            | AsymmetricEncryption::Rsa(KeyBits::Bits2048) => {
                 let rsa = Rsa::public_key_from_pem(self.pkey.trim().as_bytes())
                     .map_err(|_| "failed to create RSA from public key PEM");
                 let mut encrypted_data = vec![0; rsa.clone().unwrap().size() as usize];
@@ -200,7 +251,11 @@ impl KeyHandle for YubiKeyProvider {
                     Err(err) => return Err(SecurityModuleError::Hsm("Failed to encrypt data")),
                 } */
             }
-            AsymmetricEncryption::Ecc(_) => Err(SecurityModuleError::InitializationError("ups".to_string())),//Hsm(HsmError::DeviceSpecific("Unsupported feature".to_string()),)),
+            _ => {
+                return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                    "Key Algorithm not supported".to_string(),
+                )));
+            }
         }
     }
 
@@ -220,7 +275,8 @@ impl KeyHandle for YubiKeyProvider {
     #[instrument]
     fn verify_signature(&self, data: &[u8], signature: &[u8]) -> Result<bool, SecurityModuleError> {
         match self.key_algo.unwrap() {
-            AsymmetricEncryption::Rsa(_) => {
+            AsymmetricEncryption::Rsa(KeyBits::Bits1024)
+            | AsymmetricEncryption::Rsa(KeyBits::Bits2048) => {
                 let rsa = Rsa::public_key_from_pem(self.pkey.trim().as_bytes())
                     .expect("failed to create RSA from public key PEM");
                 let key_pkey = PKey::from_rsa(rsa).unwrap();
@@ -235,13 +291,16 @@ impl KeyHandle for YubiKeyProvider {
                     .verify(signature)
                     .expect("failed to verify signature")
                 {
-                    //keine ahnung ob das funktioniert
                     return Result::Ok(true);
                 } else {
-                    return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific("Signature verification failed".to_string(), )));
+                    return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                        "Signature verification failed".to_string(),
+                    )));
                 }
             }
-            AsymmetricEncryption::Ecc(_) => {
+
+            AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDh(EccCurves::P256))
+            | AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDh(EccCurves::P384)) => {
                 let ecc = EcKey::public_key_from_pem(self.pkey.trim().as_bytes())
                     .expect("failed to create ECC from public key PEM");
                 let ecc = PKey::from_ec_key(ecc).expect("failed to create PKey from ECC");
@@ -256,11 +315,17 @@ impl KeyHandle for YubiKeyProvider {
                     .verify(signature)
                     .expect("failed to verify signature")
                 {
-                    //keine ahnung ob das funktioniert
                     return Result::Ok(true);
                 } else {
-                    return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific("Signature verification failed".to_string(), )));
+                    return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                        "Signature verification failed".to_string(),
+                    )));
                 }
+            }
+            _ => {
+                return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                    "Key Algorithm not supported".to_string(),
+                )));
             }
         }
     }

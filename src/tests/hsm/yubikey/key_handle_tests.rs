@@ -5,6 +5,7 @@ use crate::common::{
         algorithms::{
             encryption::{AsymmetricEncryption, BlockCiphers, EccCurves, EccSchemeAlgorithm},
             hashes::Hash,
+            KeyBits,
         },
         KeyUsage,
     },
@@ -14,11 +15,11 @@ use crate::common::{
 use crate::hsm::{yubikey::YubiKeyProvider, HsmProviderConfig};
 
 #[test]
-fn test_sign_and_verify_rsa() {
+fn test_sign_and_verify_rsa_1024() {
     let mut provider = YubiKeyProvider::new("test_rsa_key".to_string());
 
     let config = HsmProviderConfig::new(
-        AsymmetricEncryption::Rsa(crate::common::crypto::algorithms::KeyBits::Bits2048),
+        AsymmetricEncryption::Rsa(KeyBits::Bits2048),
         vec![KeyUsage::SignEncrypt],
     );
 
@@ -36,7 +37,29 @@ fn test_sign_and_verify_rsa() {
 }
 
 #[test]
-fn test_sign_and_verify_ecc() {
+fn test_sign_and_verify_rsa_2048() {
+    let mut provider = YubiKeyProvider::new("test_rsa_key".to_string());
+
+    let config = HsmProviderConfig::new(
+        AsymmetricEncryption::Rsa(KeyBits::Bits2048),
+        vec![KeyUsage::SignEncrypt],
+    );
+
+    provider
+        .initialize_module()
+        .expect("Failed to initialize module");
+    provider
+        .create_key("test_rsa_key", config)
+        .expect("Failed to create RSA key");
+
+    let data = b"Hello, World!";
+    let signature = provider.sign_data(data).expect("Failed to sign data");
+
+    assert!(provider.verify_signature(data, &signature).unwrap());
+}
+
+#[test]
+fn test_sign_and_verify_ecc_256() {
     let mut provider = YubiKeyProvider::new("test_ecc_key".to_string());
 
     let config = HsmProviderConfig::new(
@@ -49,7 +72,29 @@ fn test_sign_and_verify_ecc() {
         .expect("Failed to initialize module");
     provider
         .create_key("test_ecc_key", config)
-        .expect("Failed to create ECDSA key");
+        .expect("Failed to create ECC key");
+
+    let data = b"Hello, World!";
+    let signature = provider.sign_data(data).expect("Failed to sign data");
+
+    assert!(provider.verify_signature(data, &signature).unwrap());
+}
+
+#[test]
+fn test_sign_and_verify_ecc_384() {
+    let mut provider = YubiKeyProvider::new("test_ecc_key".to_string());
+
+    let config = HsmProviderConfig::new(
+        AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDsa(EccCurves::P384)),
+        vec![KeyUsage::SignEncrypt],
+    );
+
+    provider
+        .initialize_module()
+        .expect("Failed to initialize module");
+    provider
+        .create_key("test_ecc_key", config)
+        .expect("Failed to create ECC key");
 
     let data = b"Hello, World!";
     let signature = provider.sign_data(data).expect("Failed to sign data");

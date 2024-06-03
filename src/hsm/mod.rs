@@ -4,7 +4,7 @@ use crate::common::traits::module_provider_config::ProviderConfig;
 pub mod core;
 pub mod nitrokey;
 
-//#[cfg(feature = "yubi")]
+#[cfg(feature = "yubi")]
 pub mod yubikey;
 
 #[derive(Debug)]

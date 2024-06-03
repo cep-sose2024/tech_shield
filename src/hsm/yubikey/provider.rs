@@ -1,6 +1,12 @@
 use super::YubiKeyProvider;
 use crate::common::{
-    crypto::{algorithms::encryption::AsymmetricEncryption, KeyUsage},
+    crypto::{
+        algorithms::{
+            encryption::{AsymmetricEncryption, EccCurves, EccSchemeAlgorithm},
+            KeyBits,
+        },
+        KeyUsage,
+    },
     error::SecurityModuleError,
     traits::module_provider::Provider,
 };
@@ -92,247 +98,148 @@ impl Provider for YubiKeyProvider {
             let key_algo = self.key_algo.clone().unwrap();
 
             let mut usage: &str = "";
-            let mut slot: u32 = 1;
+            let slot: u32;
             let key_usages = self.key_usages.clone().unwrap();
+            let slot_id;
 
             if !(self.load_key(key_id, config).is_ok()) {
-                match *key_usages.get(0).unwrap() {
-                    KeyUsage::SignEncrypt => {
-                        match key_algo {
-                            AsymmetricEncryption::Rsa(_) => {
-                                let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
-                                match get_free_slot(&mut yubikey) {
-                                    Ok(free) => {
-                                        self.slot_id = Some(free);
-                                    }
-                                    Err(err) => {
-                                        return Err(SecurityModuleError::InitializationError(
-                                            err.to_string(),
-                                        ));
-                                    }
-                                }
-
-                                usage = "encrypt";
-                                let _ = yubikey.verify_pin("123456".as_ref());
-                                let _ = yubikey.authenticate(MgmKey::default());
-
-                                let gen_key = piv::generate(
-                                    &mut yubikey,
-                                    SlotId::Retired(self.slot_id.unwrap()),
-                                    AlgorithmId::Rsa2048,
-                                    yubikey::PinPolicy::Default,
-                                    yubikey::TouchPolicy::Default,
-                                );
-                                match gen_key {
-                                    Ok(_) => {
-                                        let gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
-                                        let gen_key = general_purpose::STANDARD.encode(&gen_key);
-                                        let gen_key = format!(
-                                        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-                                        gen_key.trim()
-                                    );
-                                        self.pkey = gen_key;
-                                    }
-                                    Err(err) => {
-                                        return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific(err.to_string()),))
-                                    }
-                                }
-                            }
-                            AsymmetricEncryption::Ecc(_) => {
-                                let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
-                                match get_free_slot(&mut yubikey) {
-                                    Ok(free) => {
-                                        self.slot_id = Some(free);
-                                    }
-                                    Err(err) => {
-                                        return Err(SecurityModuleError::InitializationError(
-                                            err.to_string(),
-                                        ));
-                                    }
-                                }
-
-                                usage = "sign";
-                                let _ = yubikey.verify_pin("123456".as_ref());
-                                let _ = yubikey.authenticate(MgmKey::default());
-                                let gen_key = piv::generate(
-                                    &mut yubikey,
-                                    // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
-                                    SlotId::Retired(self.slot_id.unwrap()),
-                                    AlgorithmId::EccP256,
-                                    yubikey::PinPolicy::Default,
-                                    yubikey::TouchPolicy::Default,
-                                );
-
-                                match gen_key {
-                                    Ok(_) => {
-                                        let gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
-                                        let gen_key = general_purpose::STANDARD.encode(&gen_key);
-                                        let gen_key = format!(
-                                        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-                                        gen_key.trim()
-                                    );
-                                        self.pkey = gen_key;
-                                    }
-                                    Err(err) => {
-                                        return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific(err.to_string()),))
-                                    }
-                                }
-                            }
-                        }
+                let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
+                let _ = yubikey.verify_pin("123456".as_ref());
+                let _ = yubikey.authenticate(MgmKey::default());
+                match get_free_slot(&mut yubikey) {
+                    Ok(free) => {
+                        slot_id = free;
                     }
-
-                    KeyUsage::Decrypt => {
-                        match key_algo {
-                            AsymmetricEncryption::Rsa(_) => {
-                                let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
-                                match get_free_slot(&mut yubikey) {
-                                    Ok(free) => {
-                                        self.slot_id = Some(free);
-                                    }
-                                    Err(err) => {
-                                        return Err(SecurityModuleError::InitializationError(
-                                            err.to_string(),
-                                        ));
-                                    }
-                                }
-                                usage = "decrypt";
-                                let _ = yubikey.verify_pin("123456".as_ref());
-                                let _ = yubikey.authenticate(MgmKey::default());
-                                let gen_key = piv::generate(
-                                    &mut yubikey,
-                                    // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
-                                    SlotId::Retired(self.slot_id.unwrap()),
-                                    AlgorithmId::Rsa2048,
-                                    yubikey::PinPolicy::Default,
-                                    yubikey::TouchPolicy::Default,
-                                );
-                                match gen_key {
-                                    Ok(_) => {
-                                        let gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
-                                        let gen_key = general_purpose::STANDARD.encode(&gen_key);
-                                        let gen_key = format!(
-                                        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-                                        gen_key.trim()
-                                    );
-                                        self.pkey = gen_key;
-                                    }
-                                    Err(err) => {
-                                        return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific(err.to_string()),))
-                                    }
-                                }
-                            }
-                            AsymmetricEncryption::Ecc(_) => {
-                                // TODO, not tested, might work
-                            }
-                        }
-                    }
-
-                    _ => {
-                        return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific("Key Usage not supported".to_string(),)));
+                    Err(err) => {
+                        return Err(SecurityModuleError::InitializationError(err.to_string()));
                     }
                 }
             } else {
-                match key_usages.get(0).unwrap() {
-                    KeyUsage::SignEncrypt => match key_algo {
-                        AsymmetricEncryption::Rsa(_) => {
-                            let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
-                            usage = "encrypt";
-                            let _ = yubikey.verify_pin("123456".as_ref());
-                            let _ = yubikey.authenticate(MgmKey::default());
-                            let gen_key = piv::generate(
-                                &mut yubikey,
-                                // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
-                                SlotId::Retired(self.slot_id.unwrap()),
-                                AlgorithmId::Rsa2048,
-                                yubikey::PinPolicy::Default,
-                                yubikey::TouchPolicy::Default,
-                            );
-                            match gen_key {
-                                Ok(_) => {
-                                    let gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
-                                    let gen_key = general_purpose::STANDARD.encode(&gen_key);
-                                    let gen_key = format!(
-                                        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-                                        gen_key.trim()
-                                    );
-                                    self.pkey = gen_key;
-                                }
-                                Err(err) => {
-                                    return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific(err.to_string(),)))
-                                }
-                            }
-                        }
-                        AsymmetricEncryption::Ecc(_) => {
-                            let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
-                            usage = "sign";
-                            let _ = yubikey.verify_pin("123456".as_ref());
-                            let _ = yubikey.authenticate(MgmKey::default());
-                            let gen_key = piv::generate(
-                                &mut yubikey,
-                                // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
-                                SlotId::Retired(self.slot_id.unwrap()),
-                                AlgorithmId::EccP256,
-                                yubikey::PinPolicy::Default,
-                                yubikey::TouchPolicy::Default,
-                            );
-                            match gen_key {
-                                Ok(_) => {
-                                    let gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
-                                    let gen_key = general_purpose::STANDARD.encode(&gen_key);
-                                    let gen_key = format!(
-                                        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-                                        gen_key.trim()
-                                    );
-                                    self.pkey = gen_key;
-                                }
-                                Err(err) => {
-                                    return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific(err.to_string(),)))
-                                }
-                            }
-                        }
-                    },
+                slot_id = self.slot_id.unwrap();
+            }
 
-                    KeyUsage::Decrypt => {
-                        match key_algo {
-                            AsymmetricEncryption::Rsa(_) => {
-                                let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
-                                usage = "decrypt";
-                                let _ = yubikey.verify_pin("123456".as_ref());
-                                let _ = yubikey.authenticate(MgmKey::default());
-                                let gen_key = piv::generate(
-                                    &mut yubikey,
-                                    // SlotId wird noch variabel gemacht, abhängig davon wie viele Slots benötigt werden
-                                    SlotId::Retired(self.slot_id.unwrap()),
-                                    AlgorithmId::Rsa2048,
-                                    yubikey::PinPolicy::Default,
-                                    yubikey::TouchPolicy::Default,
-                                );
-                                match gen_key {
-                                    Ok(_) => {
-                                        let gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
-                                        let gen_key = general_purpose::STANDARD.encode(&gen_key);
-                                        let gen_key = format!(
-                                        "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
-                                        gen_key.trim()
-                                    );
-                                        self.pkey = gen_key;
-                                    }
-                                    Err(err) => {
-                                        return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific(err.to_string()),))
-                                    }
-                                }
-                            }
-                            AsymmetricEncryption::Ecc(_) => {
-                                // TODO, not tested, might work
-                            }
-                        }
+            fn generate_key(
+                mut yubikey: &mut YubiKey,
+                algorithm: AlgorithmId,
+                slot_id: RetiredSlotId,
+            ) -> Result<(RetiredSlotId, String), SecurityModuleError> {
+                let pkey: String;
+
+                let _ = yubikey.verify_pin("123456".as_ref());
+                let _ = yubikey.authenticate(MgmKey::default());
+
+                let gen_key = piv::generate(
+                    &mut yubikey,
+                    SlotId::Retired(slot_id),
+                    algorithm,
+                    yubikey::PinPolicy::Default,
+                    yubikey::TouchPolicy::Default,
+                );
+                match gen_key {
+                    Ok(_) => {
+                        let gen_key = gen_key.as_ref().unwrap().to_der().unwrap();
+                        let gen_key = general_purpose::STANDARD.encode(&gen_key);
+                        let gen_key = format!(
+                            "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----",
+                            gen_key.trim()
+                        );
+                        pkey = gen_key;
                     }
-
-                    _ => {
-                        return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific("Key Usage not supported".to_string(),)));
+                    Err(err) => {
+                        return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                            err.to_string(),
+                        )))
                     }
                 }
+                Ok((slot_id, pkey))
             }
+
+            match *key_usages.get(0).unwrap() {
+                KeyUsage::SignEncrypt => match key_algo {
+                    AsymmetricEncryption::Rsa(KeyBits::Bits1024) => {
+                        let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
+                        let (slot_id, pkey) =
+                            generate_key(&mut yubikey, AlgorithmId::Rsa1024, slot_id).unwrap();
+                        self.slot_id = Some(slot_id);
+                        self.pkey = pkey;
+
+                        usage = "SignEncrypt";
+                    }
+                    AsymmetricEncryption::Rsa(KeyBits::Bits2048) => {
+                        let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
+                        let (slot_id, pkey) =
+                            generate_key(&mut yubikey, AlgorithmId::Rsa2048, slot_id).unwrap();
+                        self.slot_id = Some(slot_id);
+                        self.pkey = pkey;
+
+                        usage = "SignEncrypt";
+                    }
+                    AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDh(EccCurves::P256)) => {
+                        let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
+                        let (slot_id, pkey) =
+                            generate_key(&mut yubikey, AlgorithmId::EccP256, slot_id).unwrap();
+                        self.slot_id = Some(slot_id);
+                        self.pkey = pkey;
+
+                        usage = "SignEncrypt";
+                    }
+                    AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDh(EccCurves::P384)) => {
+                        let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
+                        let (slot_id, pkey) =
+                            generate_key(&mut yubikey, AlgorithmId::EccP384, slot_id).unwrap();
+                        self.slot_id = Some(slot_id);
+                        self.pkey = pkey;
+
+                        usage = "SignEncrypt";
+                    }
+                    _ => {
+                        return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                            "Key Algorithm not supported".to_string(),
+                        )));
+                    }
+                },
+
+                KeyUsage::Decrypt => {
+                    match key_algo {
+                        AsymmetricEncryption::Rsa(KeyBits::Bits1024) => {
+                            let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
+                            let (slot_id, pkey) =
+                                generate_key(&mut yubikey, AlgorithmId::Rsa1024, slot_id).unwrap();
+                            self.slot_id = Some(slot_id);
+                            self.pkey = pkey;
+
+                            usage = "Decrypt";
+                        }
+                        AsymmetricEncryption::Rsa(KeyBits::Bits2048) => {
+                            let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
+                            let (slot_id, pkey) =
+                                generate_key(&mut yubikey, AlgorithmId::Rsa2048, slot_id).unwrap();
+                            self.slot_id = Some(slot_id);
+                            self.pkey = pkey;
+
+                            usage = "Decrypt";
+                        }
+                        AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDh(EccCurves::P256)) => {
+                            // TODO, not tested, might work
+                        }
+                        AsymmetricEncryption::Ecc(EccSchemeAlgorithm::EcDh(EccCurves::P384)) => {
+                            // TODO, not tested, might work
+                        }
+                        _ => {
+                            return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                                "Key Algorithm not supported".to_string(),
+                            )));
+                        }
+                    }
+                }
+
+                _ => {
+                    return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                        "Key Usage not supported".to_string(),
+                    )));
+                }
+            }
+
             let mut yubikey = self.yubikey.as_ref().unwrap().lock().unwrap();
 
             let pkey = self.pkey.clone();
@@ -344,11 +251,15 @@ impl Provider for YubiKeyProvider {
             match save_key_object(&mut yubikey, usage, key_id, slot, &pkey) {
                 Ok(_) => Ok(()),
                 Err(err) => {
-                    return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific(err.to_string(),)))
+                    return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                        err.to_string(),
+                    )))
                 }
             }
         } else {
-            Err(SecurityModuleError::InitializationError("ups".to_string()))//Hsm(HsmError::DeviceSpecific("Failed to get the Configurations".to_string(),)))
+            Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                "Failed to get the Configurations".to_string(),
+            )))
         }
     }
 
@@ -391,16 +302,16 @@ impl Provider for YubiKeyProvider {
 
             let data = output;
             match parse_slot_data(&data) {
-                Ok((key_name, slot, usage, public_key)) => {
+                Ok((key_name, _, usage, public_key)) => {
                     if key_name == key_id.to_string() {
                         let mut vector = Vec::new();
                         self.slot_id = Some(SLOTS[i - 10]);
                         self.key_usages = match usage.as_str() {
-                            "sign" | "encrypt" => {
+                            "SignEncrypt" => {
                                 vector.push(KeyUsage::SignEncrypt);
                                 Some(vector)
                             }
-                            "decrypt" => {
+                            "Decrypt" => {
                                 vector.push(KeyUsage::Decrypt);
                                 Some(vector)
                             }
@@ -419,7 +330,9 @@ impl Provider for YubiKeyProvider {
         }
 
         if !found {
-            return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific("Key not found".to_string(),)));
+            return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                "Key not found".to_string(),
+            )));
         } else {
             Ok(())
         }
@@ -455,47 +368,11 @@ impl Provider for YubiKeyProvider {
         if verify.is_ok() {
             return Ok(());
         } else {
-            return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific("Failed to verify PIN, retries: {}".to_string(),)));
+            return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+                "Failed to verify PIN, retries: {}".to_string(),
+            )));
         }
     }
-
-    // Halbfertiger Code, kann benutzt werden wenn PIN-Abfrage in App implementiert wird
-    /*
-    #[instrument]
-    fn initialize_module(
-        &mut self,
-        key_algorithm: AsymmetricEncryption,
-        sym_algorithm: Option<BlockCiphers>,
-        hash: Option<Hash>,
-        key_usage: Vec<KeyUsage>,
-        input: &str,
-    ) -> Result<device, SecurityModuleError> {
-        // Opens a connection to the yubikey device
-        loop {
-            let yubikey = YubiKey::open();
-            if yubikey.is_ok() {
-                let verify = device.verify_pin(input);
-                if verify.is_ok() {
-                    //successful login
-                    return device;
-                } else {
-                    let count = device.get_pin_retries().unwrap();
-                    // TODO: Implement PUK handling
-                    if count == 0 {
-                        return yubiKey::Error::PinLocked;
-                        /*  let puk;
-                        let pin_neu;
-                        let change_puk = device.unblock_pin(puk.as_ref(), pin_neu.as_ref());
-                        if change_puk.is_ok() {
-                            return device;
-                            */
-                    }
-                    return yubikey::Errror::WrongPin;
-                }
-            }
-        }
-    }
-    */
 }
 
 /// Saves the key object to the YubiKey device.
@@ -585,7 +462,9 @@ fn parse_slot_data(data: &[u8]) -> Result<(String, String, String, String), Secu
             public_key.to_string(),
         ))
     } else {
-        return Err(SecurityModuleError::InitializationError("ups".to_string()));//Hsm(HsmError::DeviceSpecific("Failed to verify PIN, retries: {}".to_string(),)));
+        return Err(SecurityModuleError::Hsm(HsmError::DeviceSpecific(
+            "Failed to verify PIN, retries: {}".to_string(),
+        )));
     }
 }
 
@@ -601,7 +480,7 @@ fn parse_slot_data(data: &[u8]) -> Result<(String, String, String, String), Secu
 /// A `Result` that, on failure, returns the first free slot.
 /// On Success, it returns that no more free slots are available.
 fn get_free_slot(yubikey: &mut YubiKey) -> Result<RetiredSlotId, SecurityModuleError> {
-    let mut end = false;
+    let mut end;
     let mut slot_id: RetiredSlotId = SLOTS[0];
     for i in 10..19 {
         let data = yubikey.fetch_object(SLOTSU32[i]);
@@ -643,3 +522,41 @@ fn get_reference_u32slot(slot: RetiredSlotId) -> u32 {
     }
     output
 }
+
+// Halbfertiger Code, kann benutzt werden wenn PIN-Abfrage in App implementiert wird
+/*
+#[instrument]
+fn initialize_module(
+    &mut self,
+    key_algorithm: AsymmetricEncryption,
+    sym_algorithm: Option<BlockCiphers>,
+    hash: Option<Hash>,
+    key_usage: Vec<KeyUsage>,
+    input: &str,
+) -> Result<device, SecurityModuleError> {
+    // Opens a connection to the yubikey device
+    loop {
+        let yubikey = YubiKey::open();
+        if yubikey.is_ok() {
+            let verify = device.verify_pin(input);
+            if verify.is_ok() {
+                //successful login
+                return device;
+            } else {
+                let count = device.get_pin_retries().unwrap();
+                // TODO: Implement PUK handling
+                if count == 0 {
+                    return yubiKey::Error::PinLocked;
+                    /*  let puk;
+                    let pin_neu;
+                    let change_puk = device.unblock_pin(puk.as_ref(), pin_neu.as_ref());
+                    if change_puk.is_ok() {
+                        return device;
+                        */
+                }
+                return yubikey::Errror::WrongPin;
+            }
+        }
+    }
+}
+*/
