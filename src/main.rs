@@ -1,5 +1,6 @@
 use base64::{engine::general_purpose, Engine};
 use md5::{Digest, Md5};
+use openssl::asn1::Asn1Object;
 use openssl::ec::EcKey;
 use openssl::ecdsa::EcdsaSigRef;
 use openssl::pkey::{PKeyRef, Public};
@@ -239,14 +240,14 @@ fn input_verify_signature() -> bool {
         let signature_u8: &[u8] = &signature;
     */
     // Signatur als Base64
-    let signature = "wXZUt/uzWd6xKEJLOuLIsfWUwR3x6MpT2KP/6Eg/WiXlIZvWNZbQ/hoUxYuUVY4jz28CjRJ3r8gs9PRsSV6fJqvt4+fpBYvbGOqA2WL0UJ3aO5we6bfzeGMAKNy+Q+CAFwWHNanTpUmwDCucHzdSobL7ZwpupR7YmnMFvpSDy5fEHGpzdisIvmJoUfUZNIbIOBRyi/3LxtrdN/0pmWlYD3a1LMwdSra4p2vOQXjlmqsMP2Svh6LezNFYuAom3qwciSul/r7oZFtBUU4f7MdY3+jGjUJwVxnHanLayOWjukBQbQE8rKJmJHswBufLM17rHhnLZcTAgYfgvgTN97SijA==";
+    let signature = "sQLGNoErHiYL8EQ2bBp9CifMRPnizAA7wptgJtodgEF7QYWm8S4nY+N6vacQXnybjKgK1HFWiL45K8pC/sMkcBVMkd8MnSJ56PUrqVfACmvkUaovKQQkyqZIpS1If1sW3+V0E99irzdJEPnYzFncyOV4fpiLr4jcAmhBlLiNT9FgpnSNMjmC9XOZ5pb93vebF4H/olIqdGOm74Gzwc3+BlMokLKqkLRdgdz97/PHCfsPDGGJzbX7Aexamx5lItd0mgv/IqnR5M+DMAS3A3xiotDSKalJTY8w4ncS3be142hnMhRW0AudJOa7cleGNdO1swl23JOjskR/7d7Sezi8gw==";
     let signature = general_purpose::STANDARD
         .decode(signature.as_bytes())
         .unwrap();
     let signature_u8 = signature.as_slice();
 
     // Msg
-    let raw = "test";
+    let raw = "test12345";
     let encrypted_bytes = raw.as_bytes();
 
     let verify = rsa_verify_signature(signature_u8, &key_pkey, encrypted_bytes);
@@ -298,6 +299,25 @@ fn apply_pkcs1v15_padding(data: &[u8], block_size: usize) -> Vec<u8> {
     padded_data
 }
 
+fn create_digest_info(digest: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let oid_sha256: [u8; 9] = [0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01]; // OID für SHA-256
+    let mut digest_info = vec![];
+
+    // ASN.1 SEQUENCE Header
+    digest_info.extend_from_slice(&[
+        0x30, 0x31, // SEQUENCE, Länge 49
+        0x30, 0x0d, // SEQUENCE, Länge 13
+        0x06, 0x09, // OID Header
+    ]);
+    digest_info.extend_from_slice(&oid_sha256); // OID SHA-256
+    digest_info.extend_from_slice(&[
+        0x05, 0x00, // NULL
+        0x04, 0x20, // OCTET STRING, Länge 32
+    ]);
+    digest_info.extend_from_slice(digest); // SHA-256 Hash-Wert
+
+    Ok(digest_info)
+}
 fn sign(device: &mut YubiKey) {
     println!("\nPlease enter the data to sign: \n");
     let mut data = String::new();
@@ -311,13 +331,14 @@ fn sign(device: &mut YubiKey) {
     // Input wird gehasht
     let hashed = hash_data(data_vec, "SHA256");
     let hashed_u8: &[u8] = &hashed;
+    let info = create_digest_info(hashed_u8).unwrap();
 
     //  println!("Hashed: {:?}", hashed_u8);
     //  println!("Hex: {:?}", hex::encode(hashed_u8));
 
     // Fehler im Padding selbst?
     // Padding wird zum Hash hinzugefügt
-    let padded_data = apply_pkcs1_pss_padding(&hashed_u8, 256);
+    let padded_data = apply_pkcs1v15_padding(&info, 256);
     println!("{:?}", padded_data);
     let padded_u8: &[u8] = &padded_data;
 
@@ -592,7 +613,7 @@ pub fn create_rdn() -> RdnSequence {
     return test.unwrap();
 }
 */
-
+/*
 fn apply_pkcs1_pss_padding(data: &[u8], block_size: usize) -> Vec<u8> {
     // Hash die Eingabedaten
     let mut hasher = Hasher::new(MessageDigest::sha256()).unwrap();
@@ -660,3 +681,4 @@ fn mgf1(seed: &[u8], mask_len: usize) -> Vec<u8> {
     mask.truncate(mask_len);
     mask
 }
+*/
