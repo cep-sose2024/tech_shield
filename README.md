@@ -3,7 +3,7 @@
  
 ## Overview:
 
-This GitHub project is maintained by TechShield and serves as a wrapper for the proposed crypto abstraction layer, facilitating access to a specific hardware security module (HSM) on attached USB-dongles. These dongles support secure key storage.
+This GitHub project is maintained by TechShield and serves as a wrapper for the proposed crypto abstraction layer, facilitating access to a specific hardware security module (HSM) on attached USB-dongles (Yubikey). These dongles support secure key storage.
 
 ## Objective:
 
