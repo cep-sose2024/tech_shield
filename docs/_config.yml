@@ -19,7 +19,7 @@
 # in the templates via {{ site.myvariable }}.
 
 baseurl: "/tech_shield"
-url: "http://cep-sose2024.github.io/tech_shield" # the base hostname & protocol for your site, e.g. http://example.com
+url: "https://cep-sose2024.github.io/tech_shield" # the base hostname & protocol for your site, e.g. http://example.com
 
 # Import the theme
 theme: jekyll-theme-chirpy
