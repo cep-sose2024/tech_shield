@@ -7,3 +7,8 @@ layout: post
 ---
 
 This is an contact page.
+
+Aghyad Jabali: agyad369@gmail.com
+Felix Gembala: 
+Jannis Stein:
+Sebastian Eisend: 
