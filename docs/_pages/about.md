@@ -24,3 +24,20 @@ Aghyad is our Scrum Master, ensuring that our projects run smoothly and efficien
 Felix - Product Owner
 Felix is the Product Owner at Techshield, responsible for defining the vision and strategy for our products. He works closely with the team to ensure we are delivering value to our customers and meeting their needs.
 
+
+## GitHub Profiles
+
+- [![Aghyad](https://github.com/OnkelDe)
+- [![Jannis](https://github.com/yenkkes)
+- [![Felix]()
+- [![Markus](https://github.com/markus-gruppe-e)
+- [![Sebastian](https://github.com/Eisberch)
+
+
+
+
+
+
+
+
+
