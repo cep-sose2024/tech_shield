@@ -165,50 +165,7 @@ Contributions to the Crypto Layer are welcome! If you find any issues or have su
 The Crypto Layer is released under the [MIT License](LICENSE).
 
 
-## Encryption Algorithms
-OpenPGP (Open Pretty Good Privacy)
-
-Overview:
-OpenPGP is an open standard for the encryption and signing of emails and files, based on asymmetric cryptography. It uses a key pair consisting of a public key and a private key.
-
-Functionality:
-
-Encryption:
-
-The public key of the recipient is used to encrypt the message or file.
-Only the recipient can decrypt the message using their private key.
-Signing:
-
-The sender's private key is used to digitally sign the message or file.
-The recipient can verify the sender's identity and ensure that the message has not been altered.
-Advantages of OpenPGP:
-
-Transparency: The open-source nature increases trust in the technology and security, as the code is auditable.
-Versatility: It can be used for encrypting emails, files, and storage devices, and is compatible with many platforms.
-Long-Term Use: OpenPGP keys can be used for many years.
-Cost-Free: No license fees are required.
-Disadvantages of OpenPGP:
-
-Complexity: Setup and usage can be complicated.
-Compatibility: Not all email clients and file archivers support OpenPGP.
-User-Friendliness: OpenPGP programs are often not very user-friendly.
-Cryptographic Algorithms:
-
-RSA:
-
-RSA is not preferred due to its security but inefficiency in key generation.
-AES-256:
-
-Symmetric encryption algorithm.
-With 256-bit encryption, it is nearly impossible to guess the key.
-More efficient than ECC-256 due to being symmetric.
-Requires prior asymmetric encryption to securely transmit the key.
-ECC-256:
-
-Asymmetric encryption algorithm.
-Very secure due to the Elliptic Curve Discrete Logarithm Problem (ECDLP).
-Security depends on the choice of an appropriate elliptic curve.
-More computationally intensive than AES due to the generation of two keys and more complex mathematical operations.
+thematical operations.
 Transport Layer Security (TLS):
 TLS is a protocol for encrypting connections at the transport layer, which can be used to secure the connection itself, while OpenPGP encrypts the data within that connection.
 
@@ -217,11 +174,6 @@ Key Storage Security:
 HSM (Hardware Security Module): Keys are stored within the cryptographic boundary of the HSM and are only used for cryptographic operations.
 Applications like OpenPGP on a YubiKey do not have direct access to private keys; they can only request the cryptographic processor to perform an operation using one of the protected keys (e.g., "please sign this hash using the private key with key handle N").
 In summary, both TLS and OpenPGP can be used to implement different layers of security, with TLS securing the connection and OpenPGP protecting the data itself.
-
-
-
-
-
 
 
 
