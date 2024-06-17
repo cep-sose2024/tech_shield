@@ -4,8 +4,15 @@ author: Aghyad Jabali
 date: 2024-06-14
 category: Jekyll
 layout: post
+
+  title: Page with cover image
+  author: Tao He
+  date: 2022-05-24
+  category: Jekyll
+  layout: post
 + cover: /assets/jekyll-gitbook/dinosaur.gif
----
+```
+
 About Techshield  ![Techshield ](https://github.com/cep-sose2024/tech_shield/edit/gh-pages/docs/pages/gbild.png)
 
 
