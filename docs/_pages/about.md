@@ -1,11 +1,13 @@
 ---
-title: About
-author: Aghyad Jabali
-date: 2024-06-14
-category: Jekyll
-layout: post
+# the default layout is 'page'
+icon: fas fa-info
+order: 4
 ---
+
+
+
 ![Poster](assets/img/logo/logo.jpg)
+![Techshield] (assets/img/logo.jpg)
 
 About Techshield  
 Welcome to Techshield's official GitHub page! We are a dynamic team dedicated to delivering innovative solutions and exceptional products. Here's a little bit about each of our team members:
