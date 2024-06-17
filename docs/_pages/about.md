@@ -8,6 +8,10 @@ layout: post
 About Techshield  ![Techshield] (https://github.com/cep-sose2024/tech_shield/edit/gh-pages/docs/pages/logo.png)
 
 
++ cover: /assets/jekyll-gitbook/logo.png
+
+
+
 Welcome to Techshield's official GitHub page! We are a dynamic team dedicated to delivering innovative solutions and exceptional products. Here's a little bit about each of our team members:
 
 Our Team
