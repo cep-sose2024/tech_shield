@@ -6,14 +6,13 @@ category: Jekyll
 layout: post
 ---
 
-![Poster](assets/gitbook/images/Gr.jpeg)
+![Poster](assets/gitbook/images/Logo.jpg)
 
 
 
 ## Techshield
-
-![Poster](assets/gitbook/images/Gr.jpeg)
-
+![Poster](assets/gitbook/images/Logo.jpg)
+s
 
 
 Welcome to Techshield's official GitHub page! We are a dynamic team dedicated to delivering innovative solutions and exceptional products. Here's a little bit about each of our team members:
