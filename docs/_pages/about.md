@@ -12,6 +12,10 @@ layout: post
 
 ## Techshield
 
+![Poster](assets/gitbook/images/Gr.jpeg)
+
+
+
 Welcome to Techshield's official GitHub page! We are a dynamic team dedicated to delivering innovative solutions and exceptional products. Here's a little bit about each of our team members:
 
 Our Team
@@ -32,12 +36,10 @@ Felix is the Product Owner at Techshield, responsible for defining the vision an
 
 
 ## GitHub Profiles
-
-- [![Aghyad](https://github.com/OnkelDe)
-- [![Jannis](https://github.com/yenkkes)
-- [![Felix]()
-- [![Markus](https://github.com/markus-gruppe-e)
-- [![Sebastian](https://github.com/Eisberch)
+[![Aghyad](https://github.com/OnkelDe)
+[![Jannis](https://github.com/yenkkes)
+[![Markus](https://github.com/markus-gruppe-e)
+[![Sebastian](https://github.com/Eisberch)
 
 
 
