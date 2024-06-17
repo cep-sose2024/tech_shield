@@ -5,7 +5,7 @@ date: 2024-06-14
 category: Jekyll
 layout: post
 ---
-About Techshield  ![Techshield] (https://github.com/cep-sose2024/tech_shield/edit/gh-pages/docs/assets/images/logo.jpg)
+About Techshield  ![Techshield] (assets/images/logo.jpeg)
 
 
 Welcome to Techshield's official GitHub page! We are a dynamic team dedicated to delivering innovative solutions and exceptional products. Here's a little bit about each of our team members:
