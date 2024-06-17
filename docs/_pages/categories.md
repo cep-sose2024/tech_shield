@@ -13,13 +13,7 @@ J&S-Soft GmbH, based in Heidelberg, is an international consulting and software 
 Since its founding, the company has established numerous partnerships, leading to continuous revenue growth. Notably, in 2023, J&S-Soft GmbH generated 40% of its revenue from products related to the enmeshed framework. Continued strong revenue growth is expected for 2024. To maintain this success, the further development of the enmeshed framework is of great importance.
 
 
-
-
-
-
-
-
-# Crypto Layer
+## Crypto Layer
 
 The Crypto Layer is a comprehensive and flexible cryptographic library designed to provide a unified interface for various cryptographic operations and algorithms. It offers a wide range of functionalities, including encryption, decryption, signing, signature verification, and hashing, while supporting both symmetric and asymmetric cryptography.
 
