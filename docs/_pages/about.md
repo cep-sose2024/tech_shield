@@ -5,7 +5,6 @@ date: 2024-06-14
 category: Jekyll
 layout: post
 ---
-![Techshield] (https://github.com/cep-sose2024/tech_shield/edit/gh-pages/docs/pages/logo.jpg)))
 ![Poster](assets/img/logo/logo.jpg)
 
 About Techshield  
