@@ -4,8 +4,11 @@ author: Aghyad Jabali
 date: 2024-06-14
 category: Jekyll
 layout: post
++ cover: /assets/jekyll-gitbook/dinosaur.gif
 ---
 About Techshield  ![Techshield ](https://github.com/cep-sose2024/tech_shield/edit/gh-pages/docs/pages/gbild.png)
+
+
 
 Welcome to Techshield's official GitHub page! We are a dynamic team dedicated to delivering innovative solutions and exceptional products. Here's a little bit about each of our team members:
 
