@@ -6,7 +6,7 @@ category: Jekyll
 layout: post
 ---
 
-![Poster](assets/gitbook/images/Logo.jpeg)
+![Poster](assets/gitbook/images/Gr.jpeg)
 
 
 
