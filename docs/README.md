@@ -9,7 +9,7 @@ permalink: /
 
 
 ## Techshield
-<img src="./_pages/Logo_Primary.png" alt="">
+<img src="https://github.com/cep-sose2024/tech_shield/blob/gh-pages/docs/_pages/Logo_Primary.png" alt="">
 
 
 Techshield
