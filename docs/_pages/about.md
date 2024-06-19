@@ -6,13 +6,9 @@ category: Jekyll
 layout: post
 ---
 
-![Poster](docs/_pages/assets/gitbook/images/Logo.jpg)
-
-
-
-
 ## Techshield
 
+Techshield
 Welcome to Techshield's official GitHub page! We are a dynamic team dedicated to delivering innovative solutions and exceptional products. Here's a little bit about each of our team members:
 
 Our Team
@@ -26,21 +22,12 @@ Sebastian - Developer
 Sebastian brings a wealth of experience to the team, particularly in software architecture and design. His dedication to writing clean, maintainable code ensures our projects are built on a solid foundation.
 
 Aghyad - Scrum Master
-Aghyad is our Scrum Master, ensuring that our projects run smoothly and efficiently. He excels at facilitating communication and collaboration within the team, helping us to stay on track and meet our goals.
+As our Scrum Master, Aghyad ensures that our projects run smoothly and efficiently. He excels at facilitating communication and collaboration within the team, helping us to stay on track and meet our goals.
 
 Felix - Product Owner
-Felix is the Product Owner at Techshield, responsible for defining the vision and strategy for our products. He works closely with the team to ensure we are delivering value to our customers and meeting their needs.
+Felix, our Product Owner, is responsible for defining the vision and strategy for our products. He works closely with the team to ensure we are delivering value to our customers and meeting their needs.
 
-
-## GitHub Profiles
-[![Aghyad](https://github.com/OnkelDe)
-[![Jannis](https://github.com/yenkkes)
-[![Markus](https://github.com/markus-gruppe-e)
-[![Sebastian](https://github.com/Eisberch)
-
-
-
-
+We are excited to share our journey and projects with you. Thank you for visiting Techshield's GitHub page!
 
 
 
