@@ -426,9 +426,6 @@ markdown
     
 # YubiKey Provider Documentation
 
-## Overview
-
-This module provides cryptographic operations using a YubiKey. It implements the `Provider` trait and interacts with the YubiKey device for key management and cryptographic operations.
 
 
 ## Dependencies
