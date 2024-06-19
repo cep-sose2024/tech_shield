@@ -280,12 +280,12 @@ use base64::{engine::general_purpose, Engine};
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 use tracing::instrument;
-use x509_cert::der::Encode;
+use x509_cert::der::En  ;
 use yubikey::MgmKey;
 Constants
 SLOTS
 rust
-Code kopieren
+
 const SLOTS: [RetiredSlotId; 20] = [
     RetiredSlotId::R1,
     RetiredSlotId::R2,
@@ -294,7 +294,7 @@ const SLOTS: [RetiredSlotId; 20] = [
 ];
 SLOTSU32
 rust
-Code kopieren
+    
 const SLOTSU32: [u32; 20] = [
     0x005f_c10d,
     // ... remaining slots
@@ -312,7 +312,7 @@ A Result that, on success, contains Ok(()). On failure, it returns a SecurityMod
 
 Example
 rust
-Code kopieren
+    
 #[instrument]
 fn create_key(
     &mut self,
@@ -332,7 +332,7 @@ A Result that, on success, contains Ok(()). On failure, it returns a SecurityMod
 
 Example
 rust
-Code kopieren
+    
 #[instrument]
 fn load_key(&mut self, key_id: &str, config: Box<dyn Any>) -> Result<(), SecurityModuleError> {
     // Implementation here
@@ -347,7 +347,7 @@ A Result that, on success, contains Ok(()). On failure, it returns a Yubikey bas
 
 Example
 rust
-Code kopieren
+    
 #[instrument]
 fn initialize_module(&mut self) -> Result<(), SecurityModuleError> {
     // Implementation here
@@ -367,7 +367,7 @@ A Result that, on success, contains Ok(()). On failure, it returns a yubikey::Er
 
 Example
 rust
-Code kopieren
+    
 fn save_key_object(
     yubikey: &mut YubiKey,
     key_id: &str,
@@ -387,7 +387,7 @@ A Result that, on success, contains Ok((key_name, slot, public_key, algo)). On f
 
 Example
 rust
-Code kopieren
+    
 fn parse_slot_data(data: &[u8]) -> Result<(String, String, String, String), SecurityModuleError> {
     // Implementation here
 }
@@ -401,7 +401,7 @@ A Result that, on success, contains Ok(RetiredSlotId). On failure, it returns a 
 
 Example
 rust
-Code kopieren
+    
 fn get_free_slot(yubikey: &mut YubiKey) -> Result<RetiredSlotId, SecurityModuleError> {
     // Implementation here
 }
@@ -415,7 +415,7 @@ The corresponding u32 value of the RetiredSlotId.
 
 Example
 rust
-Code kopieren
+    
 fn get_reference_u32slot(slot: RetiredSlotId) -> u32 {
     // Implementation here
 }
@@ -429,7 +429,7 @@ A Result that, on success, contains Ok(Vec<String>) with information about all s
 
 Example
 rust
-Code kopieren
+    
 fn list_all_slots(yubikey: &mut YubiKey) -> Result<Vec<String>, SecurityModuleError> {
     // Implementation here
 }
@@ -437,16 +437,15 @@ License
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 sql
-Code kopieren
+    
 
 You can copy and paste the above content directly into your Markdown file for your GitHub Pages.
 put everything in md file
 
-ChatGPT
 Sure, here is everything put together in a single Markdown file:
 
 markdown
-Code kopieren
+    
 # YubiKey Provider Documentation
 
 ## Overview
@@ -490,13 +489,13 @@ use base64::{engine::general_purpose, Engine};
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 use tracing::instrument;
-use x509_cert::der::Encode;
+use x509_cert::der::En  ;
 use yubikey::MgmKey;
 Constants
 SLOTS
 rust
-Code kopieren
-const SLOTS: [RetiredSlotId; 20] = [
+    
+## const SLOTS: [RetiredSlotId; 20] = [
     RetiredSlotId::R1,
     RetiredSlotId::R2,
     RetiredSlotId::R3,
@@ -518,9 +517,11 @@ const SLOTS: [RetiredSlotId; 20] = [
     RetiredSlotId::R19,
     RetiredSlotId::R20,
 ];
-SLOTSU32
+
+
+## SLOTSU32
 rust
-Code kopieren
+    
 const SLOTSU32: [u32; 20] = [
     0x005f_c10d,
     0x005f_c10e,
@@ -543,7 +544,7 @@ const SLOTSU32: [u32; 20] = [
     0x005f_c11f,
     0x005f_c120,
 ];
-Provider Implementation
+## Provider Implementation
 create_key
 Creates a new cryptographic key identified by the provider-given key_id.
 
@@ -555,8 +556,8 @@ A Result that, on success, contains Ok(()). On failure, it returns a SecurityMod
 
 Example
 rust
-Code kopieren
-#[instrument]
+    
+## [instrument]
 fn create_key(
     &mut self,
     key_id: &str,
@@ -564,7 +565,7 @@ fn create_key(
 ) -> Result<(), SecurityModuleError> {
     // Implementation here
 }
-load_key
+## load_key
 Loads an existing cryptographic key identified by key_id.
 
 Arguments
@@ -575,12 +576,12 @@ A Result that, on success, contains Ok(()). On failure, it returns a SecurityMod
 
 Example
 rust
-Code kopieren
+    
 #[instrument]
 fn load_key(&mut self, key_id: &str, config: Box<dyn Any>) -> Result<(), SecurityModuleError> {
     // Implementation here
 }
-initialize_module
+## initialize_module
 Initializes the YubiKey module and returns a handle for cryptographic operations.
 
 Arguments
@@ -590,7 +591,7 @@ A Result that, on success, contains Ok(()). On failure, it returns a Yubikey bas
 
 Example
 rust
-Code kopieren
+    
 #[instrument]
 fn initialize_module(&mut self) -> Result<(), SecurityModuleError> {
     // Implementation here
@@ -599,7 +600,7 @@ Helper Functions
 save_key_object
 Saves the key object to the YubiKey device.
 
-Arguments
+## Arguments
 yubikey: Reference to the YubiKey device.
 key_id: A string slice that uniquely identifies the key.
 slot_id: An address where an object will be stored.
@@ -610,7 +611,7 @@ A Result that, on success, contains Ok(()). On failure, it returns a yubikey::Er
 
 Example
 rust
-Code kopieren
+    
 fn save_key_object(
     yubikey: &mut YubiKey,
     key_id: &str,
@@ -630,7 +631,7 @@ A Result that, on success, contains Ok((key_name, slot, public_key, algo)). On f
 
 Example
 rust
-Code kopieren
+    
 fn parse_slot_data(data: &[u8]) -> Result<(String, String, String, String), SecurityModuleError> {
     // Implementation here
 }
@@ -644,7 +645,7 @@ A Result that, on success, contains Ok(RetiredSlotId). On failure, it returns a 
 
 Example
 rust
-Code kopieren
+    
 fn get_free_slot(yubikey: &mut YubiKey) -> Result<RetiredSlotId, SecurityModuleError> {
     // Implementation here
 }
@@ -658,7 +659,7 @@ The corresponding u32 value of the RetiredSlotId.
 
 Example
 rust
-Code kopieren
+    
 fn get_reference_u32slot(slot: RetiredSlotId) -> u32 {
     // Implementation here
 }
@@ -672,7 +673,7 @@ A Result that, on success, contains Ok(Vec<String>) with information about all s
 
 Example
 rust
-Code kopieren
+    
 fn list_all_slots(yubikey: &mut YubiKey) -> Result<Vec<String>, SecurityModuleError> {
     // Implementation here
 }
