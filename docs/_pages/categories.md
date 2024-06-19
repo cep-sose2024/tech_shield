@@ -216,28 +216,6 @@ The Crypto Layer is released under the [MIT License](LICENSE).
 
 # YubiKey Provider Documentation
 
-## Overview
-
-This module provides cryptographic operations using a YubiKey. It implements the `Provider` trait and interacts with the YubiKey device for key management and cryptographic operations.
-
-## Table of Contents
-
-1. [Dependencies](#dependencies)
-2. [Constants](#constants)
-3. [Provider Implementation](#provider-implementation)
-    - [create_key](#create_key)
-    - [load_key](#load_key)
-    - [initialize_module](#initialize_module)
-4. [Helper Functions](#helper-functions)
-    - [save_key_object](#save_key_object)
-    - [parse_slot_data](#parse_slot_data)
-    - [get_free_slot](#get_free_slot)
-    - [get_reference_u32slot](#get_reference_u32slot)
-    - [list_all_slots](#list_all_slots)
-5. [License](#license)
-
-
-# YubiKey Provider Documentation
 
 ## Overview
 
