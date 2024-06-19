@@ -10,7 +10,7 @@ layout: post
 
 
 ## Techshield
-![Image Description](/assets/gitbook/images/Gr.jpeg)
+![Image Description](docs/_pages/Logo_Primay.png)
 
 Techshield
 Welcome to Techshield's official GitHub page! We're a team committed to delivering innovative solutions and high-quality products. Here's a bit about each of our team members:
