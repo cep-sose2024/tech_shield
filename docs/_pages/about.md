@@ -9,15 +9,14 @@ layout: post
 
 
 
+
 ## Techshield
 
 Techshield
 Welcome to Techshield's official GitHub page! We're a team committed to delivering innovative solutions and high-quality products. Here's a bit about each of our team members:
 
 Our Team
-<img src="[https://i.pinimg.com/originals/eb/68/2a/eb682acad8f78afb9b0060455d409c2f.jpg](https://i.pinimg.com/originals/7b/a7/89/7ba789a8319206a696ce5eaeee5abdc6.png)" />
-
-
+<img src="https://i.pinimg.com/originals/7b/a7/89/7ba789a8319206a696ce5eaeee5abdc6.png" />
 
 Jannis - Developer
 Jannis specializes in backend development with a sharp eye for detail. He is dedicated to optimizing and improving our systems through his coding expertise.
