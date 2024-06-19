@@ -7,16 +7,10 @@ layout: post
 ---
 
 
-  ---
-  title: Page with cover image
-  author: Tao He
-  date: 2022-05-24
-  category: Jekyll
-  layout: post
-+ cover: /assets/gitbook/images/Gr.jpeg
-  ---
+
 
 ## Techshield
+![Image Description](/assets/gitbook/images/Gr.jpeg)
 
 Techshield
 Welcome to Techshield's official GitHub page! We're a team committed to delivering innovative solutions and high-quality products. Here's a bit about each of our team members:
