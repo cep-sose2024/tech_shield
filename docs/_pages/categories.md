@@ -7,10 +7,58 @@ layout: post
 --- 
 
 
-## Project Overview
+## J&S-Soft Overview
 J&S-Soft GmbH, based in Heidelberg, is an international consulting and software development company specializing in technologies such as SAP HANA, SAP Business Technology Platform (BTP), S/4HANA, as well as SAP UI5 and SAP Fiori. In addition to these services, J&S-Soft GmbH develops its own software solutions, including the open-source framework enmeshed. This framework enables simple, intelligent, and secure GDPR-compliant data transfers, even extending to private users.
 
 Since its founding, the company has established numerous partnerships, leading to continuous revenue growth. Notably, in 2023, J&S-Soft GmbH generated 40% of its revenue from products related to the enmeshed framework. Continued strong revenue growth is expected for 2024. To maintain this success, the further development of the enmeshed framework is of great importance.
+
+
+# CEP SoSe24 Project Overview
+
+## Objectives
+
+With the planned project "CEP SoSe24," J&S-Soft GmbH aims to achieve the following objectives:
+
+1. **Significant Advancement of the Enmeshed Framework**
+   - Enhance and expand the existing capabilities of the enmeshed framework to support more robust and scalable applications.
+
+2. **Secure Generation and Management of Multiple Keys for Various Cryptographic Applications**
+   - Develop and implement mechanisms to securely generate and manage numerous keys essential for different cryptographic procedures.
+
+3. **Increase Compatibility through the Integration of Various Hardware Security Modules**
+   - Improve the compatibility of the enmeshed framework by integrating different hardware security modules (HSMs) to enhance security and performance.
+
+4. **Evaluation of Previous Developments and Incorporation of New Ideas into the Enmeshed Framework**
+   - Assess the current developments and integrate new concepts and innovations to continuously improve the enmeshed framework.
+
+## Project-Specific Conditions
+
+The following chapters describe the conditions specific to the project.
+
+### Organizational Conditions
+
+The development team at J&S-Soft GmbH employs various encryption methods within the enmeshed framework for secure communication and data exchange. In this context, a multitude of keys is generated and managed. A significant challenge is to generate these keys securely and protect them from unauthorized access. To adequately address this risk, the process will be secured using different Hardware Security Modules (HSMs) in the future.
+
+## Project Work Packages
+
+The project is divided into three work packages:
+
+### AP-1: Conceptualization of Secure Key Management Using Hardware Security Modules
+
+Develop a comprehensive concept for secure key management utilizing HSMs to enhance security and efficiency.
+
+### AP-2: Implementation Based on the Developed Concept
+
+Execute the implementation of the secure key management system according to the conceptual framework established in AP-1.
+
+### AP-3: Creation of a Risk Assessment for the Developed Implementation
+
+Conduct a thorough risk assessment of the implemented key management system to identify potential vulnerabilities and ensure robust security measures are in place.
+
+
+
+
+
 
 
 ## Crypto Layer
