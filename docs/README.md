@@ -9,8 +9,7 @@ permalink: /
 
 
 ## Techshield
-<img src="https://1drv.ms/i/s!AkOCSe6u8EV-ilbj8DN9FwtyUCT1?e=51wjqL" alt="">
-
+<img src="https://onedrive.live.com/embed?resid=7E45F0AEEE498243%211366&authkey=%21AA1L30Yx54tqDSg&width=1978&height=1113" width="1978" height="1113" />
 
 Techshield
 Welcome to Techshield's official GitHub page! We're a team committed to delivering innovative solutions and high-quality products. Here's a bit about each of our team members:
