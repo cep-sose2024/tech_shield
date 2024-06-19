@@ -5,10 +5,9 @@ date: 2022-02-05
 category: Jekyll
 layout: post
 ---
+contact us 
 
-This is an contact page.
-
-Aghyad Jabali: agyad369@gmail.com
-Felix Gembala: 
-Jannis Stein:
-Sebastian Eisend: 
+Aghyad Jabali:aghyad.jabali@stud.hs-mannheim.de
+Felix Gembala:felix.gemballa@stud.hs-mannheim.de
+Jannis Stein:Jannis.stein@stud.hs-mannheim.de
+Sebastian Eisend: sebastian.eisend@stud.hs-mannheim.de
