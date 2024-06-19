@@ -9,7 +9,7 @@ permalink: /
 
 
 ## Techshield
-![Image Description](https://github.com/cep-sose2024/tech_shield/blob/gh-pages/docs/_pages/Logo_Primary.png)
+![Image Description](./_pages/Logo_Primary.png)
 
 Techshield
 Welcome to Techshield's official GitHub page! We're a team committed to delivering innovative solutions and high-quality products. Here's a bit about each of our team members:
