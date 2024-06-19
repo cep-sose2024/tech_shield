@@ -9,7 +9,8 @@ permalink: /
 
 
 ## Techshield
-![Image Description](./_pages/Logo_Primary.png)
+<img src="./_pages/Logo_Primary.png" alt="">
+
 
 Techshield
 Welcome to Techshield's official GitHub page! We're a team committed to delivering innovative solutions and high-quality products. Here's a bit about each of our team members:
