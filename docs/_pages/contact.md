@@ -8,6 +8,9 @@ layout: post
 contact us 
 
 Aghyad Jabali:aghyad.jabali@stud.hs-mannheim.de
+
 Felix Gembala:felix.gemballa@stud.hs-mannheim.de
+
 Jannis Stein:Jannis.stein@stud.hs-mannheim.de
+
 Sebastian Eisend: sebastian.eisend@stud.hs-mannheim.de
