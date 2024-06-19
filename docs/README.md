@@ -9,7 +9,7 @@ permalink: /
 
 
 ## Techshield
-<img src="https://github.com/cep-sose2024/tech_shield/blob/gh-pages/docs/_pages/Logo_Primary.png" alt="">
+<img src="https://img.freepik.com/free-photo/beautiful-kitten-with-flowers-outdoors_23-2150752802.jpg" alt="">
 
 
 Techshield
