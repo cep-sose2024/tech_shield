@@ -40,6 +40,14 @@ sudo apt-get install libssl-dev
 ## Usage:
 
 Dependencies
+[dependencies]
+yubikey = "0.5"
+base64 = "0.13"
+openssl = "0.10"
+rsa = "0.5"
+sha2 = "0.9"
+tracing = "0.1"
+x509-cert = "0.5"
 
 To use the cryptographic functionalities, ensure you have the following dependencies in your Cargo.toml:
 
@@ -49,7 +57,7 @@ This module provides cryptographic operations for asymmetric keys on a YubiKey, 
 
 First, ensure you have a `YubiKeyProvider` instance initialized. This example assumes that you have a YubiKey device connected and appropriate libraries installed.
 
-```rust
+
 let yubi_key_provider = YubiKeyProvider {
     yubikey: Some(Arc::new(Mutex::new(Yubikey::new()))),
     key_algo: Some(AsymmetricEncryption::Rsa(KeyBits::Bits2048)),
@@ -58,6 +66,7 @@ let yubi_key_provider = YubiKeyProvider {
     slot_id: Some(20),
 };
 
+# Sign Data
 To sign data using the YubiKey:
 let data = b"Hello, world!";
 let signature = yubi_key_provider.sign_data(data);
@@ -66,7 +75,7 @@ match signature {
     Err(e) => println!("Error signing data: {:?}", e),
 }
 
-Decrypting Data
+# Decrypting Data
 To decrypt data that was previously encrypted with the corresponding public key:
 let encrypted_data = vec![...]; // Your encrypted data here
 let decrypted_data = yubi_key_provider.decrypt_data(&encrypted_data);
@@ -75,7 +84,7 @@ match decrypted_data {
     Err(e) => println!("Error decrypting data: {:?}", e),
 }
 
-Encrypting Data
+# Encrypting Data
 To encrypt data using the YubiKey:
 let data = b"Secure this!";
 let encrypted_data = yubi_key_provider.encrypt_data(data);
@@ -84,7 +93,7 @@ match encrypted_data {
     Err(e) => println!("Error encrypting data: {:?}", e),
 }
 
-Verifying a Signature
+# Verifying a Signature
 To verify a signature against the original data:
 let original_data = b"Hello, world!";
 let signature = vec![...]; // Your signature here
