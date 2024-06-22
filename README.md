@@ -56,9 +56,6 @@ x509-cert = "0.5"
 
 #Example
 Below is an example of how to use the YubiKeyProvider to sign data.
-
-rust
-Code kopieren
 use super::YubiKeyProvider;
 use crate::{
     common::{
