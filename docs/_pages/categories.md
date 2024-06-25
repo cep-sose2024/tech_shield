@@ -237,8 +237,6 @@ This module provides cryptographic operations using a YubiKey. It implements the
     - [list_all_slots](#list_all_slots)
 5. [License](#license)
 
-### Cryptographic Operations Test Documentation
-```markdown
 # Cryptographic Operations Test Documentation
 
 This document provides a comprehensive overview of the test cases designed for cryptographic operations within the system. These tests focus on signing, verifying, encrypting, and decrypting data using RSA and ECC keys. The goal is to ensure the integrity and reliability of these operations, which are critical for the security of the system's data and communications.
