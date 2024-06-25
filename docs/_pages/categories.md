@@ -237,6 +237,75 @@ This module provides cryptographic operations using a YubiKey. It implements the
     - [list_all_slots](#list_all_slots)
 5. [License](#license)
 
+### Cryptographic Operations Test Documentation
+This document provides a comprehensive overview of the test cases designed for cryptographic operations within the system. These tests focus on signing, verifying, encrypting, and decrypting data using RSA and ECC keys. The goal is to ensure the integrity and reliability of these operations, which are critical for the security of the system's data and communications.
+
+Overview
+The purpose of this module is to thoroughly test cryptographic operations, specifically focusing on:
+
+Signing and verifying data with RSA and ECC keys.
+Encrypting and decrypting data using RSA keys.
+Test Cases
+Signing and Verifying Data
+test_sign_and_verify_rsa_1024:
+
+Description: Tests signing and verifying data using a 1024-bit RSA key.
+Steps:
+Initialize YubiKeyProvider with key ID and configuration.
+Initialize the HSM module on the YubiKey device.
+Create a 1024-bit RSA key pair.
+Sign predefined data.
+Verify the signature of the signed data.
+test_sign_and_verify_rsa_2048:
+
+Description: Tests signing and verifying data using a 2048-bit RSA key.
+Steps: Follow the same steps as test_sign_and_verify_rsa_1024, but with a 2048-bit key configuration.
+test_sign_and_verify_ecc_256:
+
+Description: Tests signing and verifying data using a 256-bit ECC key.
+Steps: Follow the same steps as test_sign_and_verify_rsa_1024, but with a 256-bit ECC key configuration.
+test_sign_and_verify_ecc_384:
+
+Description: Tests signing and verifying data using a 384-bit ECC key.
+Steps: Follow the same steps as test_sign_and_verify_rsa_1024, but with a 384-bit ECC key configuration.
+Encrypting and Decrypting Data
+test_encrypt_and_decrypt_rsa_1024:
+
+Description: Tests encrypting and decrypting data using a 1024-bit RSA key.
+Steps:
+Initialize YubiKeyProvider with key ID and configuration.
+Initialize the HSM module on the YubiKey device.
+Create a 1024-bit RSA key pair.
+Encrypt predefined data.
+Decrypt the encrypted data and verify it matches the original data.
+test_encrypt_and_decrypt_rsa_2048:
+
+Description: Tests encrypting and decrypting data using a 2048-bit RSA key.
+Steps: Follow the same steps as test_encrypt_and_decrypt_rsa_1024, but with a 2048-bit key configuration.
+Test Procedures
+Each test case follows these general steps:
+
+Initialization: Set up the YubiKeyProvider with necessary parameters.
+Module Initialization: Initialize the HSM module on the YubiKey device.
+Key Creation: Generate a key pair according to the test requirements.
+Operation: Perform the cryptographic operation (sign, verify, encrypt, decrypt).
+Verification: Ensure the operation's outcome matches the expected result.
+Test Parameters
+RSA Keys: Tests cover 1024-bit and 2048-bit key sizes.
+ECC Keys: Tests cover 256-bit and 384-bit key sizes.
+Test Assumptions
+A YubiKey device is connected and configured correctly.
+The device is accessible via the system's USB interface.
+Expected Behavior
+Successful key creation, signing, verification, encryption, and decryption without errors.
+Failures in these operations are considered test failures and should be reported.
+Additional Resources
+For further information on cryptographic implementations and test vectors, refer to the OP-TEE documentation, AWS KMS concepts, and GitHub repository on crypto test vectors​ (OP-TEE Documentation)​​ (GitHub)​​ (AWS Documentation)​​ (MS Learn)​​ (UnifiedQA)​.
+
+
+
+
+
 ## Dependencies
 
 ```rust
@@ -741,9 +810,6 @@ fn list_all_slots(yubikey: &mut YubiKey) -> Result<Vec<String>, SecurityModuleEr
 }
 
 
-thematical operations.
-Transport Layer Security (TLS):
-TLS is a protocol for encrypting connections at the transport layer, which can be used to secure the connection itself, while OpenPGP encrypts the data within that connection.
 
 Key Storage Security:
 
