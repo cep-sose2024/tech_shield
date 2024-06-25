@@ -311,18 +311,6 @@ Each test case follows these general steps:
 - Successful key creation, signing, verification, encryption, and decryption without errors.
 - Failures in these operations are considered test failures and should be reported.
 
-## Additional Resources
-
-For further information on cryptographic implementations and test vectors, refer to the following resources:
-- [OP-TEE documentation](https://optee.readthedocs.io)【5†source】
-- [AWS KMS concepts](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html)【7†source】
-- [GitHub repository on crypto test vectors](https://github.com/jedisct1/crypto-test-vectors)【6†source】
-- [Microsoft Learn on TPM 2.0](https://learn.microsoft.com/en-us/windows-hardware/test/hlk/testref/05c7c4ac-3e44-4083-ab2b-24fe117887db)【8†source】
-- [Testsigma on testing documentation](https://testsigma.com)【9†source】
-
-By following this documentation, you can ensure that all cryptographic operations are thoroughly tested, contributing to the overall security and reliability of the system.
-```
-
 
 ## Dependencies
 
@@ -365,6 +353,7 @@ const SLOTSU32: [u32; 20] = [
     // ... remaining slots
     0x005f_c120,
 ];
+
 Provider Implementation
 create_key
 Creates a new cryptographic key identified by the provider-given key_id.#Example
