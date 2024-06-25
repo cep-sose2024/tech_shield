@@ -238,72 +238,92 @@ This module provides cryptographic operations using a YubiKey. It implements the
 5. [License](#license)
 
 ### Cryptographic Operations Test Documentation
+```markdown
+# Cryptographic Operations Test Documentation
+
 This document provides a comprehensive overview of the test cases designed for cryptographic operations within the system. These tests focus on signing, verifying, encrypting, and decrypting data using RSA and ECC keys. The goal is to ensure the integrity and reliability of these operations, which are critical for the security of the system's data and communications.
 
-Overview
+## Overview
+
 The purpose of this module is to thoroughly test cryptographic operations, specifically focusing on:
+- Signing and verifying data with RSA and ECC keys.
+- Encrypting and decrypting data using RSA keys.
 
-Signing and verifying data with RSA and ECC keys.
-Encrypting and decrypting data using RSA keys.
-Test Cases
-Signing and Verifying Data
-test_sign_and_verify_rsa_1024:
+## Test Cases
 
-Description: Tests signing and verifying data using a 1024-bit RSA key.
-Steps:
-Initialize YubiKeyProvider with key ID and configuration.
-Initialize the HSM module on the YubiKey device.
-Create a 1024-bit RSA key pair.
-Sign predefined data.
-Verify the signature of the signed data.
-test_sign_and_verify_rsa_2048:
+### Signing and Verifying Data
 
-Description: Tests signing and verifying data using a 2048-bit RSA key.
-Steps: Follow the same steps as test_sign_and_verify_rsa_1024, but with a 2048-bit key configuration.
-test_sign_and_verify_ecc_256:
+1. **`test_sign_and_verify_rsa_1024`**
+   - **Description**: Tests signing and verifying data using a 1024-bit RSA key.
+   - **Steps**:
+     1. Initialize `YubiKeyProvider` with key ID and configuration.
+     2. Initialize the HSM module on the YubiKey device.
+     3. Create a 1024-bit RSA key pair.
+     4. Sign predefined data.
+     5. Verify the signature of the signed data.
 
-Description: Tests signing and verifying data using a 256-bit ECC key.
-Steps: Follow the same steps as test_sign_and_verify_rsa_1024, but with a 256-bit ECC key configuration.
-test_sign_and_verify_ecc_384:
+2. **`test_sign_and_verify_rsa_2048`**
+   - **Description**: Tests signing and verifying data using a 2048-bit RSA key.
+   - **Steps**: Follow the same steps as `test_sign_and_verify_rsa_1024`, but with a 2048-bit key configuration.
 
-Description: Tests signing and verifying data using a 384-bit ECC key.
-Steps: Follow the same steps as test_sign_and_verify_rsa_1024, but with a 384-bit ECC key configuration.
-Encrypting and Decrypting Data
-test_encrypt_and_decrypt_rsa_1024:
+3. **`test_sign_and_verify_ecc_256`**
+   - **Description**: Tests signing and verifying data using a 256-bit ECC key.
+   - **Steps**: Follow the same steps as `test_sign_and_verify_rsa_1024`, but with a 256-bit ECC key configuration.
 
-Description: Tests encrypting and decrypting data using a 1024-bit RSA key.
-Steps:
-Initialize YubiKeyProvider with key ID and configuration.
-Initialize the HSM module on the YubiKey device.
-Create a 1024-bit RSA key pair.
-Encrypt predefined data.
-Decrypt the encrypted data and verify it matches the original data.
-test_encrypt_and_decrypt_rsa_2048:
+4. **`test_sign_and_verify_ecc_384`**
+   - **Description**: Tests signing and verifying data using a 384-bit ECC key.
+   - **Steps**: Follow the same steps as `test_sign_and_verify_rsa_1024`, but with a 384-bit ECC key configuration.
 
-Description: Tests encrypting and decrypting data using a 2048-bit RSA key.
-Steps: Follow the same steps as test_encrypt_and_decrypt_rsa_1024, but with a 2048-bit key configuration.
-Test Procedures
+### Encrypting and Decrypting Data
+
+1. **`test_encrypt_and_decrypt_rsa_1024`**
+   - **Description**: Tests encrypting and decrypting data using a 1024-bit RSA key.
+   - **Steps**:
+     1. Initialize `YubiKeyProvider` with key ID and configuration.
+     2. Initialize the HSM module on the YubiKey device.
+     3. Create a 1024-bit RSA key pair.
+     4. Encrypt predefined data.
+     5. Decrypt the encrypted data and verify it matches the original data.
+
+2. **`test_encrypt_and_decrypt_rsa_2048`**
+   - **Description**: Tests encrypting and decrypting data using a 2048-bit RSA key.
+   - **Steps**: Follow the same steps as `test_encrypt_and_decrypt_rsa_1024`, but with a 2048-bit key configuration.
+
+## Test Procedures
+
 Each test case follows these general steps:
+1. **Initialization**: Set up the `YubiKeyProvider` with necessary parameters.
+2. **Module Initialization**: Initialize the HSM module on the YubiKey device.
+3. **Key Creation**: Generate a key pair according to the test requirements.
+4. **Operation**: Perform the cryptographic operation (sign, verify, encrypt, decrypt).
+5. **Verification**: Ensure the operation's outcome matches the expected result.
 
-Initialization: Set up the YubiKeyProvider with necessary parameters.
-Module Initialization: Initialize the HSM module on the YubiKey device.
-Key Creation: Generate a key pair according to the test requirements.
-Operation: Perform the cryptographic operation (sign, verify, encrypt, decrypt).
-Verification: Ensure the operation's outcome matches the expected result.
-Test Parameters
-RSA Keys: Tests cover 1024-bit and 2048-bit key sizes.
-ECC Keys: Tests cover 256-bit and 384-bit key sizes.
-Test Assumptions
-A YubiKey device is connected and configured correctly.
-The device is accessible via the system's USB interface.
-Expected Behavior
-Successful key creation, signing, verification, encryption, and decryption without errors.
-Failures in these operations are considered test failures and should be reported.
-Additional Resources
-For further information on cryptographic implementations and test vectors, refer to the OP-TEE documentation, AWS KMS concepts, and GitHub repository on crypto test vectors​ (OP-TEE Documentation)​​ (GitHub)​​ (AWS Documentation)​​ (MS Learn)​​ (UnifiedQA)​.
+## Test Parameters
 
+- **RSA Keys**: Tests cover 1024-bit and 2048-bit key sizes.
+- **ECC Keys**: Tests cover 256-bit and 384-bit key sizes.
 
+## Test Assumptions
 
+- A YubiKey device is connected and configured correctly.
+- The device is accessible via the system's USB interface.
+
+## Expected Behavior
+
+- Successful key creation, signing, verification, encryption, and decryption without errors.
+- Failures in these operations are considered test failures and should be reported.
+
+## Additional Resources
+
+For further information on cryptographic implementations and test vectors, refer to the following resources:
+- [OP-TEE documentation](https://optee.readthedocs.io)【5†source】
+- [AWS KMS concepts](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html)【7†source】
+- [GitHub repository on crypto test vectors](https://github.com/jedisct1/crypto-test-vectors)【6†source】
+- [Microsoft Learn on TPM 2.0](https://learn.microsoft.com/en-us/windows-hardware/test/hlk/testref/05c7c4ac-3e44-4083-ab2b-24fe117887db)【8†source】
+- [Testsigma on testing documentation](https://testsigma.com)【9†source】
+
+By following this documentation, you can ensure that all cryptographic operations are thoroughly tested, contributing to the overall security and reliability of the system.
+```
 
 
 ## Dependencies
